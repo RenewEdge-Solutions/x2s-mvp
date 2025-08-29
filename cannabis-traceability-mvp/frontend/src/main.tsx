@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import './index.css';
 import App from './App';
+import DataDump from './pages/DataDump';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ModuleProvider } from './context/ModuleContext';
 import Login from './pages/Login';
@@ -11,8 +12,10 @@ import Wizard from './pages/Wizard';
 import LifecycleExplorer from './pages/LifecycleExplorer';
 import Calendar from './pages/Calendar';
 import Inventory from './pages/Inventory';
+import Plants from './pages/Plants';
 import BlockchainView from './pages/BlockchainView';
 import Profile from './pages/Profile';
+import Reports from './pages/Reports';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -38,8 +41,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                       <Route path="/wizard" element={<Wizard />} />
                       <Route path="/lifecycle" element={<LifecycleExplorer />} />
                       <Route path="/calendar" element={<Calendar />} />
+                      <Route path="/production" element={<Plants />} />
                       <Route path="/inventory" element={<Inventory />} />
+                      <Route path="/reports" element={<Reports />} />
                       <Route path="/integrity" element={<BlockchainView />} />
+                      <Route path="/debug/data" element={<DataDump />} />
                       <Route path="/profile" element={<Profile />} />
                     </Routes>
                   </App>

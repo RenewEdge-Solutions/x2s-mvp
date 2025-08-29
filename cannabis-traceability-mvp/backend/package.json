@@ -9,6 +9,8 @@
     "build": "nest build",
   "seed:ts": "ts-node -r tsconfig-paths/register src/seed.ts",
   "seed": "node dist/seed.js",
+  "cleanup:ts": "ts-node -r tsconfig-paths/register src/cleanup.ts",
+  "cleanup": "node dist/cleanup.js",
     "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {

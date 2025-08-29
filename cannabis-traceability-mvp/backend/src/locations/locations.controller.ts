@@ -1,0 +1,31 @@
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { LocationsService } from './locations.service';
+
+@Controller('locations')
+export class LocationsController {
+  constructor(private svc: LocationsService) {}
+
+  // Geolocations
+  @Get('geos') listGeos() { return this.svc.listGeos(); }
+  @Post('geos') createGeo(@Body() body: { name: string; address?: string; lat?: number; lng?: number }) {
+    return this.svc.createGeo(body);
+  }
+  @Delete('geos/:id') deleteGeo(@Param('id') id: string) { return this.svc.deleteGeo(id); }
+
+  // Facilities
+  @Get('facilities/:geoId') listFacilities(@Param('geoId') geoId: string) { return this.svc.listFacilities(geoId); }
+  @Post('facilities') createFacility(@Body() body: { geoId: string; name: string; type: 'farm' | 'building' }) {
+    return this.svc.createFacility(body);
+  }
+  @Delete('facilities/:id') deleteFacility(@Param('id') id: string) { return this.svc.deleteFacility(id); }
+
+  // Structures
+  @Get('structures/:facilityId') listStructures(@Param('facilityId') facilityId: string) { return this.svc.listStructures(facilityId); }
+  @Post('structures') createStructure(@Body() body: { facilityId: string; name: string; type: 'room' | 'greenhouse'; size?: number }) {
+    return this.svc.createStructure(body);
+  }
+  @Delete('structures/:id') deleteStructure(@Param('id') id: string) { return this.svc.deleteStructure(id); }
+
+  // Reset helper
+  @Post('reset') resetAll() { return this.svc.resetAll(); }
+}

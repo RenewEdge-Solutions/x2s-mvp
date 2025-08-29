@@ -26,28 +26,6 @@ export default function Inventory() {
     return { activePlants, drying, dried };
   }, [plants, harvests]);
 
-  const supplies = useMemo(
-    () => [
-      { category: 'Nutrients', item: 'Nutrient A (Grow)', unit: 'L', onHand: 12, minStock: 5, location: 'Chem Store' },
-      { category: 'Nutrients', item: 'Nutrient B (Bloom)', unit: 'L', onHand: 7, minStock: 5, location: 'Chem Store' },
-      { category: 'Media', item: 'Soil bags 50L', unit: 'bags', onHand: 18, minStock: 10, location: 'Warehouse' },
-      { category: 'Hardware', item: '3 Gallon Pots', unit: 'pcs', onHand: 120, minStock: 60, location: 'Warehouse' },
-      { category: 'PPE', item: 'Nitrile Gloves (M)', unit: 'boxes', onHand: 24, minStock: 12, location: 'Warehouse' },
-      { category: 'Tools', item: 'Trimming Scissors', unit: 'pcs', onHand: 14, minStock: 10, location: 'Tool Crib' },
-    ],
-    [],
-  );
-
-  const packaging = useMemo(
-    () => [
-      { item: 'Mylar Bags (1oz)', unit: 'pcs', onHand: 800, minStock: 400, location: 'Packaging' },
-      { item: 'Glass Jars (4oz)', unit: 'pcs', onHand: 260, minStock: 200, location: 'Packaging' },
-      { item: 'Tamper Seals', unit: 'pcs', onHand: 1000, minStock: 500, location: 'Packaging' },
-      { item: 'Labels (Strain)', unit: 'rolls', onHand: 12, minStock: 6, location: 'Print Room' },
-    ],
-    [],
-  );
-
   if (activeModule !== 'cannabis') {
     return (
       <Card>
@@ -119,7 +97,6 @@ export default function Inventory() {
                 <th className="py-2 pr-4">Lot</th>
                 <th className="py-2 pr-4">Weight</th>
                 <th className="py-2 pr-4">Status</th>
-                <th className="py-2 pr-4">Location</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -128,7 +105,6 @@ export default function Inventory() {
                   <td className="py-2 pr-4 font-mono text-xs">{h.id}</td>
                   <td className="py-2 pr-4">{h.yieldGrams} g</td>
                   <td className="py-2 pr-4 capitalize">{h.status}</td>
-                  <td className="py-2 pr-4">{h.status === 'drying' ? 'Dry Room 1' : 'Vault A'}</td>
                 </tr>
               ))}
             </tbody>
@@ -136,60 +112,6 @@ export default function Inventory() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <h2 className="text-lg font-medium text-gray-900 mb-2">Supplies</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-500">
-                  <th className="py-2 pr-4">Category</th>
-                  <th className="py-2 pr-4">Item</th>
-                  <th className="py-2 pr-4">On hand</th>
-                  <th className="py-2 pr-4">Min</th>
-                  <th className="py-2 pr-4">Location</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {supplies.map((s, i) => (
-                  <tr key={i} className="text-gray-800">
-                    <td className="py-2 pr-4">{s.category}</td>
-                    <td className="py-2 pr-4">{s.item}</td>
-                    <td className="py-2 pr-4">{s.onHand} {s.unit}</td>
-                    <td className="py-2 pr-4">{s.minStock} {s.unit}</td>
-                    <td className="py-2 pr-4">{s.location}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-        <Card>
-          <h2 className="text-lg font-medium text-gray-900 mb-2">Packaging</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-500">
-                  <th className="py-2 pr-4">Item</th>
-                  <th className="py-2 pr-4">On hand</th>
-                  <th className="py-2 pr-4">Min</th>
-                  <th className="py-2 pr-4">Location</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {packaging.map((p, i) => (
-                  <tr key={i} className="text-gray-800">
-                    <td className="py-2 pr-4">{p.item}</td>
-                    <td className="py-2 pr-4">{p.onHand} {p.unit}</td>
-                    <td className="py-2 pr-4">{p.minStock} {p.unit}</td>
-                    <td className="py-2 pr-4">{p.location}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
     </div>
   );
 }

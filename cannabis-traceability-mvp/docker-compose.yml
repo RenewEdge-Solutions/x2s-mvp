@@ -21,8 +21,9 @@ services:
       context: ./backend
     env_file:
       - ./backend/.env
+    # Map backend to host 3002 to avoid conflicts with local dev on 3001
     ports:
-      - "3001:3001"
+      - "3002:3001"
     depends_on:
       db:
         condition: service_healthy
@@ -35,7 +36,10 @@ services:
     build:
       context: ./frontend
     environment:
-      - VITE_API_URL=http://localhost:3001
+      # The browser runs on the host, so point to host-mapped backend port
+      VITE_API_URL: http://localhost:3002
+      # Google Maps API key for Vite (read from top-level .env)
+      VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
     ports:
       - "5173:3000"
     depends_on:

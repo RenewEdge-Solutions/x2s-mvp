@@ -3,6 +3,10 @@ import { ConfigModule } from '@nestjs/config';
 import { Plant } from '../plants/plant.entity';
 import { Harvest } from '../harvests/harvest.entity';
 import { UserEntity } from '../users/user.entity';
+import { ReportEntity } from '../reports/report.entity';
+import { Geolocation } from '../locations/geolocation.entity';
+import { Facility } from '../locations/facility.entity';
+import { Structure } from '../locations/structure.entity';
 
 const ormConfig: TypeOrmModuleAsyncOptions = {
   imports: [
@@ -24,7 +28,7 @@ const ormConfig: TypeOrmModuleAsyncOptions = {
       username,
       password,
       database,
-  entities: [Plant, Harvest, UserEntity],
+  entities: [Plant, Harvest, UserEntity, ReportEntity, Geolocation, Facility, Structure],
       synchronize: true,
       logging: false,
     } as const;

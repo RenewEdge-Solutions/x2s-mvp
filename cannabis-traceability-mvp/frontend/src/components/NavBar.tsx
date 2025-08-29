@@ -1,16 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import DisabledLink from './DisabledLink';
 import { useModule } from '../context/ModuleContext';
-import { Leaf, ShieldCheck, Wand2, User as UserIcon, ChevronDown, LogOut, Calendar as CalendarIcon, Package as PackageIcon, Bell, Sprout } from 'lucide-react';
+import { Leaf, ShieldCheck, Wand2, User as UserIcon, ChevronDown, LogOut, Calendar as CalendarIcon, Package as PackageIcon, Bell, Sprout, FileText } from 'lucide-react';
 import { api } from '../lib/api';
 
 export default function NavBar() {
   const { user, logout } = useAuth();
   const { activeModule, setActiveModule, availableModules } = useModule();
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const isActive = (p: string) => {
     const active = pathname === p || (p === '/dashboard' && pathname === '/');
     return active ? 'text-primary' : 'text-gray-600 hover:text-gray-900';
@@ -48,14 +47,17 @@ export default function NavBar() {
           <Link className={`${isActive('/dashboard')} inline-flex items-center gap-1`} to="/dashboard">
             <Wand2 className="h-4 w-4" aria-hidden /> Dashboard
           </Link>
-          <Link className={`${isActive('/plants')} inline-flex items-center gap-1`} to="/plants">
-            <Sprout className="h-4 w-4" aria-hidden /> Plants
+          <Link className={`${isActive('/production')} inline-flex items-center gap-1`} to="/production">
+            <Sprout className="h-4 w-4" aria-hidden /> Production
           </Link>
           <Link className={`${isActive('/inventory')} inline-flex items-center gap-1`} to="/inventory">
             <PackageIcon className="h-4 w-4" aria-hidden /> Inventory
           </Link>
           <Link className={`${isActive('/calendar')} inline-flex items-center gap-1`} to="/calendar">
             <CalendarIcon className="h-4 w-4" aria-hidden /> Calendar
+          </Link>
+          <Link className={`${isActive('/reports')} inline-flex items-center gap-1`} to="/reports">
+            <FileText className="h-4 w-4" aria-hidden /> Reports
           </Link>
           <span className="text-gray-200">|</span>
           <NotificationsMenu />
@@ -155,7 +157,7 @@ function NotificationsMenu() {
     const daysBetween = (d: string | number | Date) => Math.floor((now - new Date(d).getTime()) / 86400000);
 
     const out: Notification[] = [];
-    plants.forEach((p: any) => {
+  plants.forEach((p: any) => {
       const age = daysBetween(p.plantedAt);
       const daysToHarvest = 60 - age;
       if (!p.harvested && daysToHarvest <= 3 && daysToHarvest >= 0) {
@@ -169,7 +171,7 @@ function NotificationsMenu() {
         });
       }
       if (!p.harvested && age >= 12 && age <= 16) {
-        out.push({ id: `transplant-${p.id}`, text: `Transplant recommended: ${p.strain} (${p.location})`, severity: 'info' });
+    out.push({ id: `transplant-${p.id}`, text: `Transplant recommended: ${p.strain} (${p.location})`, severity: 'info', href: '/production' });
       }
     });
     harvests.forEach((h: any) => {
@@ -215,29 +217,38 @@ function NotificationsMenu() {
           ) : (
             <ul className="max-h-80 overflow-auto">
               {items.map((n) => (
-                <li key={n.id} className="px-3 py-2 hover:bg-gray-50">
-                  <div className="text-sm text-gray-800">
-                    <span
-                      className={
-                        'inline-block w-2 h-2 rounded-full mr-2 align-middle ' +
-                        (n.severity === 'alert'
-                          ? 'bg-red-500'
-                          : n.severity === 'warning'
-                          ? 'bg-amber-500'
-                          : 'bg-blue-500')
+                <li key={n.id} className="px-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (n.href) {
+                        // navigate within SPA and keep notification until backend condition resolves
+                        window.history.pushState({}, '', n.href);
+                        // close menu for focus shift
+                        setOpen(false);
                       }
-                      aria-hidden
-                    />
-                    {n.text}
-                  </div>
-                  {n.href && (
-                    <button
-                      onClick={() => (window.location.href = n.href!)}
-                      className="mt-1 text-xs text-primary hover:underline"
-                    >
-                      View
-                    </button>
-                  )}
+                    }}
+                    className={`w-full text-left px-2 py-2 rounded-md hover:bg-gray-50 ${n.href ? 'cursor-pointer' : 'cursor-default'}`}
+                    aria-label={n.href ? `Open task: ${n.text}` : undefined}
+                  >
+                    <div className="text-sm text-gray-800">
+                      <span
+                        className={
+                          'inline-block w-2 h-2 rounded-full mr-2 align-middle ' +
+                          (n.severity === 'alert'
+                            ? 'bg-red-500'
+                            : n.severity === 'warning'
+                            ? 'bg-amber-500'
+                            : 'bg-blue-500')
+                        }
+                        aria-hidden
+                      />
+                      {n.text}
+                    </div>
+                    {n.href && (
+                      <div className="mt-0.5 text-[11px] text-primary">Click to open</div>
+                    )}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -248,4 +259,4 @@ function NotificationsMenu() {
   );
 }
 
-// ActionsDropdown removed per navbar simplification
+// Reports dropdown removed; direct link used instead

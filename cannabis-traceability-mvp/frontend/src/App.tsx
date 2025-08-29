@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavBar } from './components';
+import NavBar from './components/NavBar';
 
 export default function App({ children }: { children: React.ReactNode }) {
   return (

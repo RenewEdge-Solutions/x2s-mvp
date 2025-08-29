@@ -3,6 +3,8 @@ node_modules/
 .npm/
 *.log
 
+.env.*.local
+storage/
 # Env
 .env
 backend/.env
