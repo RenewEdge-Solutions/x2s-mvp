@@ -21,7 +21,7 @@ export class LocationsController {
 
   // Structures
   @Get('structures/:facilityId') listStructures(@Param('facilityId') facilityId: string) { return this.svc.listStructures(facilityId); }
-  @Post('structures') createStructure(@Body() body: { facilityId: string; name: string; type: 'room' | 'greenhouse'; size?: number }) {
+  @Post('structures') createStructure(@Body() body: { facilityId: string; name: string; type: 'room' | 'greenhouse'; size?: number; usage: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents'; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> }) {
     return this.svc.createStructure(body);
   }
   @Delete('structures/:id') deleteStructure(@Param('id') id: string) { return this.svc.deleteStructure(id); }

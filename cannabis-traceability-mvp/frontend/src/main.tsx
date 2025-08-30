@@ -41,7 +41,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                       <Route path="/wizard" element={<Wizard />} />
                       <Route path="/lifecycle" element={<LifecycleExplorer />} />
                       <Route path="/calendar" element={<Calendar />} />
-                      <Route path="/production" element={<Plants />} />
+                      <Route path="/production" element={<Navigate to="/facilities" replace />} />
+                      <Route path="/facilities" element={<Plants />} />
                       <Route path="/inventory" element={<Inventory />} />
                       <Route path="/reports" element={<Reports />} />
                       <Route path="/integrity" element={<BlockchainView />} />

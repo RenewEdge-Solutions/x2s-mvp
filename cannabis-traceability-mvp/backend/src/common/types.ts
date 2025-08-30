@@ -1,4 +1,13 @@
-export type UserRole = 'Regulator' | 'Auditor' | 'Grower' | 'Shop' | 'Lab' | 'Operator';
+export type UserRole =
+  | 'Regulator'
+  | 'Auditor'
+  | 'Grower'
+  | 'Shop'
+  | 'Lab'
+  | 'Operator'
+  | 'Operator.Farmer'
+  | 'Operator.Shop'
+  | 'Operator.Lab';
 
 export interface User {
   username: string;

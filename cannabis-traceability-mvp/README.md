@@ -36,6 +36,7 @@ docker compose up --build
 - Operator wizard: Plant seed, then Harvest crop
 - Lifecycle Explorer: merged timeline of plant + harvest events
 - Blockchain Integrity: server SHA-256 hashes for events; verify locally in browser
+- Facilities View: browse and manage geolocations, facilities, structures, and equipment (with add equipment modal)
 
 ## Notes
 

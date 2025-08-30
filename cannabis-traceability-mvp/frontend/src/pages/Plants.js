@@ -1,9 +1,9 @@
 import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import Card from '../components/Card';
 import { api } from '../lib/api';
 import { useModule } from '../context/ModuleContext';
-import { Sprout, Map as MapIcon, Layers, ChevronRight, ChevronLeft, Info, ChevronDown, Plus, MapPin, Trash } from 'lucide-react';
+import { Sprout, Map as MapIcon, Layers, ChevronRight, ChevronLeft, Info, ChevronDown, Plus, MapPin } from 'lucide-react';
 function parseTopType(name) {
     if (/^Indoor Room /i.test(name))
         return 'room';
@@ -97,18 +97,27 @@ function leftNameFromTop(topKey, type) {
 }
 export default function Plants() {
     const { activeModule } = useModule();
+    // Ref to equipment pane for scrollIntoView
+    const equipmentRef = useRef(null);
     const [plants, setPlants] = useState([]);
     const [selectedTop, setSelectedTop] = useState(null);
     const [selectedSub, setSelectedSub] = useState(null);
     const [selectedPlant, setSelectedPlant] = useState(null);
-    const [selectedGeo, setSelectedGeo] = useState(null); // geo id
-    const [selectedFacility, setSelectedFacility] = useState(null); // facility id
+    const [selectedGeo, setSelectedGeo] = useState(null);
+    const [selectedFacility, setSelectedFacility] = useState(null);
     const [geoList, setGeoList] = useState([]);
     const [facilityList, setFacilityList] = useState([]);
+    // Cache facilities per geo to show counts without extra clicks
+    const [facilitiesByGeo, setFacilitiesByGeo] = useState({});
     // Removed Add Location wizard and draft preview
     const [expandedTop, setExpandedTop] = useState({});
     const [expandedSub, setExpandedSub] = useState({});
     // Removed Unassigned from Areas UI
+    // Simple error helper to surface network issues
+    const showError = (e) => {
+        const msg = e?.message ? String(e.message) : 'Unknown error';
+        alert(`Request failed. Please ensure the API is running and reachable.\n\nDetails: ${msg}`);
+    };
     useEffect(() => {
         if (activeModule === 'cannabis') {
             api.getPlants().then(setPlants);
@@ -120,6 +129,57 @@ export default function Plants() {
         setSelectedSub(null);
         setSelectedPlant(null);
     }, [activeModule]);
+    // Load geolocations on mount/when module is cannabis
+    useEffect(() => {
+        if (activeModule !== 'cannabis')
+            return;
+        (async () => {
+            try {
+                const gs = await api.getGeos();
+                setGeoList(gs);
+            }
+            catch {
+                setGeoList([]);
+            }
+        })();
+    }, [activeModule]);
+    // When a geolocation is selected, load its facilities
+    useEffect(() => {
+        if (!selectedGeo) {
+            setFacilityList([]);
+            return;
+        }
+        (async () => {
+            try {
+                const fs = await api.getFacilities(selectedGeo);
+                setFacilityList(fs);
+                // also cache in facilitiesByGeo for counts
+                setFacilitiesByGeo((prev) => ({ ...prev, [selectedGeo]: fs }));
+            }
+            catch {
+                setFacilityList([]);
+            }
+        })();
+    }, [selectedGeo]);
+    // When a facility is selected, load its structures
+    useEffect(() => {
+        if (!selectedFacility)
+            return;
+        (async () => {
+            try {
+                const list = await api.getStructures(selectedFacility);
+                const mapped = list.map((s) => ({ id: s.id, facility: s.facility?.id, name: s.name, type: s.type, size: s.size }));
+                // Merge with any structures from other facilities
+                setStructureList((prev) => {
+                    const others = prev.filter((x) => x.facility !== selectedFacility);
+                    return [...others, ...mapped];
+                });
+            }
+            catch {
+                // no-op
+            }
+        })();
+    }, [selectedFacility]);
     const locations = useMemo(() => buildLocations(plants.filter((p) => !p.harvested)), [plants]);
     // Derive geolocations from the first segment before first comma in facility name if available, else use full facility name.
     // Geolocations come from local storage only (empty state supported)
@@ -129,6 +189,61 @@ export default function Plants() {
             return [];
         return facilityList.filter(f => f.geo?.id === selectedGeo).sort((a, b) => a.name.localeCompare(b.name));
     }, [facilityList, selectedGeo]);
+    // Prefetch facilities for all geos so counters are populated
+    useEffect(() => {
+        if (geos.length === 0)
+            return;
+        (async () => {
+            try {
+                const entries = await Promise.all(geos.map(async (g) => {
+                    try {
+                        const fs = await api.getFacilities(g.id);
+                        return [g.id, fs];
+                    }
+                    catch {
+                        return [g.id, []];
+                    }
+                }));
+                setFacilitiesByGeo((prev) => {
+                    const next = { ...prev };
+                    for (const [gid, fs] of entries)
+                        next[gid] = fs;
+                    return next;
+                });
+            }
+            catch {
+                // ignore
+            }
+        })();
+    }, [geos]);
+    // Prefetch structures for all facilities in current geolocation so facility counters show immediately
+    useEffect(() => {
+        if (facilitiesForGeo.length === 0)
+            return;
+        (async () => {
+            const ids = facilitiesForGeo.map((f) => f.id);
+            try {
+                const lists = await Promise.all(ids.map(async (fid) => {
+                    try {
+                        const list = await api.getStructures(fid);
+                        return list.map((s) => ({ id: s.id, facility: s.facility?.id, name: s.name, type: s.type, size: s.size }));
+                    }
+                    catch {
+                        return [];
+                    }
+                }));
+                const flattened = [].concat(...lists);
+                setStructureList((prev) => {
+                    const toExclude = new Set(ids);
+                    const others = prev.filter((x) => !toExclude.has(x.facility));
+                    return [...others, ...flattened];
+                });
+            }
+            catch {
+                // ignore
+            }
+        })();
+    }, [facilitiesForGeo]);
     // Modals state
     const [geoModalOpen, setGeoModalOpen] = useState(false);
     const [geoForm, setGeoForm] = useState({ name: '', address: '' });
@@ -145,7 +260,9 @@ export default function Plants() {
     const [structureList, setStructureList] = useState(loadStructures);
     const persistStructures = (arr) => { setStructureList(arr); localStorage.setItem('mvp.structures', JSON.stringify(arr)); };
     const [structureModalOpen, setStructureModalOpen] = useState(false);
-    const [structureForm, setStructureForm] = useState({ name: '', type: 'room', size: '' });
+    // Equipment modal state
+    const [equipModalOpen, setEquipModalOpen] = useState(false);
+    const [structureForm, setStructureForm] = useState({ name: '', type: 'room', size: '', usage: '', tents: [], racks: [] });
     // Structures available for the currently selected facility
     const topsForFacility = useMemo(() => {
         if (!selectedFacility)
@@ -171,25 +288,12 @@ export default function Plants() {
     if (activeModule !== 'cannabis') {
         return (_jsx(Card, { children: _jsxs("p", { className: "text-sm text-gray-700", children: ["Plants for ", activeModule, " are not yet implemented in this MVP."] }) }));
     }
-    return (_jsxs("div", { className: "space-y-4", children: [_jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("h1", { className: "text-2xl font-semibold text-gray-900 inline-flex items-center gap-2", children: [_jsx(MapIcon, { className: "h-6 w-6", "aria-hidden": true }), " Production"] }), _jsx("div", { className: "flex items-center gap-2", children: _jsx("button", { className: "p-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50", title: "Reset local data", "aria-label": "Reset local data", onClick: () => {
-                                // Clear local-only MVP data
-                                localStorage.removeItem('mvp.geos');
-                                localStorage.removeItem('mvp.facilities');
-                                localStorage.removeItem('mvp.structures');
-                                setGeoList([]);
-                                setFacilityList([]);
-                                setStructureList([]);
-                                setSelectedGeo(null);
-                                setSelectedFacility(null);
-                                setSelectedTop(null);
-                                setSelectedSub(null);
-                                setSelectedPlant(null);
-                            }, children: _jsx(Trash, { className: "h-4 w-4", "aria-hidden": true }) }) })] }), _jsx("div", { className: "xl:hidden", children: _jsx(Card, { children: _jsxs("div", { className: "flex flex-wrap items-center gap-3", children: [_jsxs("div", { className: "flex items-center gap-2", children: [_jsx("span", { className: "text-sm text-gray-600", children: "Geolocation" }), _jsxs("select", { className: "text-base border-gray-300 rounded-md focus:ring-primary focus:border-primary", value: selectedGeo || '', onChange: (e) => { const v = e.target.value || null; setSelectedGeo(v); setSelectedFacility(null); setSelectedTop(null); setSelectedSub(null); setSelectedPlant(null); }, children: [_jsx("option", { value: "", children: "Select\u2026" }), geos.map((g) => (_jsx("option", { value: g.id, children: g.name }, g.id)))] })] }), _jsxs("div", { className: "flex items-center gap-2", children: [_jsx("span", { className: "text-sm text-gray-600", children: "Facility" }), _jsxs("select", { className: "text-base border-gray-300 rounded-md focus:ring-primary focus:border-primary", value: selectedFacility || '', onChange: (e) => { const v = e.target.value || null; setSelectedFacility(v); setSelectedTop(null); setSelectedSub(null); setSelectedPlant(null); }, disabled: !selectedGeo, children: [_jsx("option", { value: "", children: "Select\u2026" }), facilitiesForGeo.map((f) => (_jsxs("option", { value: f.name, children: [f.name, " \u00B7 ", f.type] }, f.name)))] })] }), _jsxs("div", { className: "flex items-center gap-2", children: [_jsx("span", { className: "text-sm text-gray-600", children: "Location" }), _jsxs("select", { className: "text-base border-gray-300 rounded-md focus:ring-primary focus:border-primary", value: selectedTop || '', onChange: (e) => { const v = e.target.value || null; setSelectedTop(v); setSelectedSub(null); setSelectedPlant(null); }, disabled: !selectedFacility, children: [_jsx("option", { value: "", children: "Select\u2026" }), topsForFacility.map((t) => (_jsx("option", { value: t.key, children: formatTopKeyDisplay(t.key, t.type) }, t.key)))] })] }), _jsxs("div", { className: "flex items-center gap-2 lg:hidden", children: [_jsx("span", { className: "text-sm text-gray-600", children: "Area" }), _jsxs("select", { className: "text-base border-gray-300 rounded-md focus:ring-primary focus:border-primary", value: selectedSub || '', onChange: (e) => { const v = e.target.value || null; setSelectedSub(v || null); setSelectedPlant(null); }, disabled: !selectedTop, children: [_jsx("option", { value: "", children: "Select\u2026" }), selectedTop && (Object.values(locations[selectedTop]?.sublocations || {})
+    return (_jsxs("div", { className: "space-y-4", children: [_jsx("div", { className: "flex items-center justify-between", children: _jsxs("h1", { className: "text-2xl font-semibold text-gray-900 inline-flex items-center gap-2", children: [_jsx(MapIcon, { className: "h-6 w-6", "aria-hidden": true }), " Facilities"] }) }), _jsx("div", { className: "xl:hidden", children: _jsx(Card, { children: _jsxs("div", { className: "flex flex-wrap items-center gap-3", children: [_jsxs("div", { className: "flex items-center gap-2", children: [_jsx("span", { className: "text-sm text-gray-600", children: "Geolocation" }), _jsxs("select", { className: "text-base border-gray-300 rounded-md focus:ring-primary focus:border-primary", value: selectedGeo || '', onChange: (e) => { const v = e.target.value || null; setSelectedGeo(v); setSelectedFacility(null); setSelectedTop(null); setSelectedSub(null); setSelectedPlant(null); }, children: [_jsx("option", { value: "", children: "Select\u2026" }), geos.map((g) => (_jsx("option", { value: g.id, children: g.name }, g.id)))] })] }), _jsxs("div", { className: "flex items-center gap-2", children: [_jsx("span", { className: "text-sm text-gray-600", children: "Facility" }), _jsxs("select", { className: "text-base border-gray-300 rounded-md focus:ring-primary focus:border-primary", value: selectedFacility || '', onChange: (e) => { const v = e.target.value || null; setSelectedFacility(v); setSelectedTop(null); setSelectedSub(null); setSelectedPlant(null); }, disabled: !selectedGeo, children: [_jsx("option", { value: "", children: "Select\u2026" }), facilitiesForGeo.map((f) => (_jsxs("option", { value: f.id, children: [f.name, " \u00B7 ", f.type] }, f.id)))] })] }), _jsxs("div", { className: "flex items-center gap-2", children: [_jsx("span", { className: "text-sm text-gray-600", children: "Location" }), _jsxs("select", { className: "text-base border-gray-300 rounded-md focus:ring-primary focus:border-primary", value: selectedTop || '', onChange: (e) => { const v = e.target.value || null; setSelectedTop(v); setSelectedSub(null); setSelectedPlant(null); }, disabled: !selectedFacility, children: [_jsx("option", { value: "", children: "Select\u2026" }), topsForFacility.map((t) => (_jsx("option", { value: t.key, children: formatTopKeyDisplay(t.key, t.type) }, t.key)))] })] }), _jsxs("div", { className: "flex items-center gap-2 lg:hidden", children: [_jsx("span", { className: "text-sm text-gray-600", children: "Area" }), _jsxs("select", { className: "text-base border-gray-300 rounded-md focus:ring-primary focus:border-primary", value: selectedSub || '', onChange: (e) => { const v = e.target.value || null; setSelectedSub(v || null); setSelectedPlant(null); }, disabled: !selectedTop, children: [_jsx("option", { value: "", children: "Select\u2026" }), selectedTop && (Object.values(locations[selectedTop]?.sublocations || {})
                                                 .sort((a, b) => a.key.localeCompare(b.key))
-                                                .map((s) => (_jsx("option", { value: s.key, children: s.key }, s.key))))] })] })] }) }) }), _jsxs("div", { className: "grid gap-4 items-start grid-cols-1 md:[grid-template-columns:280px_minmax(0,1fr)] lg:[grid-template-columns:280px_280px_minmax(0,1fr)] xl:[grid-template-columns:280px_280px_minmax(0,1fr)]", children: [!selectedPlant && (_jsx(Card, { className: "hidden xl:block", children: _jsxs("div", { className: "w-full min-w-0", children: [_jsxs("div", { className: "flex items-center justify-between mb-2", children: [_jsx("h2", { className: "text-base font-medium text-gray-900", children: "Geolocations" }), _jsx("button", { className: "p-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50", "aria-label": "Add geolocation", onClick: () => setGeoModalOpen(true), children: _jsx(Plus, { className: "h-4 w-4", "aria-hidden": true }) })] }), geos.length > 0 ? (_jsx("div", { children: _jsx("ul", { className: "divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden", children: geos.map((g) => (_jsx("li", { children: _jsxs("button", { className: `w-full text-left px-3 py-2 flex items-center justify-between ${selectedGeo === g.id ? 'bg-primary/5' : 'hover:bg-gray-50'}`, onClick: () => { setSelectedGeo(g.id); setSelectedFacility(null); setSelectedTop(null); setSelectedSub(null); setSelectedPlant(null); }, children: [_jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-base text-gray-900 truncate", children: g.name }), _jsxs("div", { className: "text-sm text-gray-500", children: [facilityList.filter(f => f.geo?.id === g.id).length, " facilities"] })] }), _jsx(ChevronRight, { className: "h-4 w-4 text-gray-400 shrink-0", "aria-hidden": true })] }) }, g.id))) }) })) : (_jsx("div", { className: "border border-dashed border-gray-300 rounded-lg p-4 text-center text-base text-gray-700", children: "No geolocations" }))] }) })), selectedGeo && (_jsx(Card, { className: "hidden lg:block", children: _jsxs("div", { className: "w-full min-w-0", children: [_jsxs("div", { className: "flex items-center justify-between mb-2", children: [_jsx("h2", { className: "text-base font-medium text-gray-900", children: "Facilities" }), _jsx("button", { className: "p-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50", "aria-label": "Add facility", onClick: () => { setFacilityForm({ name: '', type: 'farm' }); setFacilityModalOpen(true); }, children: _jsx(Plus, { className: "h-4 w-4", "aria-hidden": true }) })] }), _jsxs("ul", { className: "divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden", children: [facilitiesForGeo.map((f) => (_jsx("li", { children: _jsxs("button", { className: `w-full text-left px-3 py-2 flex items-center justify-between ${selectedFacility === f.id ? 'bg-primary/5' : 'hover:bg-gray-50'}`, onClick: () => { setSelectedFacility(f.id); setSelectedTop(null); setSelectedSub(null); setSelectedPlant(null); }, children: [_jsxs("div", { className: "min-w-0", children: [_jsxs("div", { className: "text-base text-gray-900 truncate", children: [f.name, " ", _jsxs("span", { className: "text-sm text-gray-500", children: ["\u00B7 ", f.type] })] }), _jsxs("div", { className: "text-sm text-gray-500", children: [selectedFacility === f.id ? structureList.length : 0, " structures"] })] }), _jsx(ChevronRight, { className: "h-4 w-4 text-gray-400 shrink-0", "aria-hidden": true })] }) }, f.id))), facilitiesForGeo.length === 0 && (_jsx("li", { className: "px-3 py-2 text-base text-gray-500", children: "No facilities." }))] })] }) })), selectedFacility && (_jsx(Card, { className: "hidden lg:block", children: _jsxs("div", { className: "w-full min-w-0", children: [_jsxs("div", { className: "flex items-center justify-between mb-2", children: [_jsx("h2", { className: "text-base font-medium text-gray-900", children: "Structures" }), _jsx("button", { className: "p-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50", "aria-label": "Add structure", onClick: () => {
+                                                .map((s) => (_jsx("option", { value: s.key, children: s.key }, s.key))))] })] })] }) }) }), _jsxs("div", { className: "grid gap-4 items-start grid-cols-1 md:[grid-template-columns:280px_minmax(0,1fr)] lg:[grid-template-columns:280px_280px_minmax(0,1fr)] xl:[grid-template-columns:280px_280px_280px_280px_minmax(0,1fr)]", children: [!selectedPlant && (_jsx(Card, { className: "hidden xl:block", children: _jsxs("div", { className: "w-full min-w-0", children: [_jsxs("div", { className: "flex items-center justify-between mb-2", children: [_jsx("h2", { className: "text-base font-medium text-gray-900", children: "Geolocations" }), _jsx("button", { className: "p-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50", "aria-label": "Add geolocation", onClick: () => setGeoModalOpen(true), children: _jsx(Plus, { className: "h-4 w-4", "aria-hidden": true }) })] }), geos.length > 0 ? (_jsx("div", { children: _jsx("ul", { className: "divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden", children: geos.map((g) => (_jsx("li", { children: _jsxs("button", { className: `w-full text-left px-3 py-2 flex items-center justify-between ${selectedGeo === g.id ? 'bg-primary/5' : 'hover:bg-gray-50'}`, onClick: () => { setSelectedGeo(g.id); setSelectedFacility(null); setSelectedTop(null); setSelectedSub(null); setSelectedPlant(null); }, children: [_jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-base text-gray-900 truncate", children: g.name }), _jsxs("div", { className: "text-sm text-gray-500", children: [(facilitiesByGeo[g.id] || []).length, " facilities"] })] }), _jsx(ChevronRight, { className: "h-4 w-4 text-gray-400 shrink-0", "aria-hidden": true })] }) }, g.id))) }) })) : (_jsx("div", { className: "border border-dashed border-gray-300 rounded-lg p-4 text-center text-base text-gray-700", children: "No geolocations" }))] }) })), selectedGeo && (_jsx(Card, { className: "hidden lg:block", children: _jsxs("div", { className: "w-full min-w-0", children: [_jsxs("div", { className: "flex items-center justify-between mb-2", children: [_jsx("h2", { className: "text-base font-medium text-gray-900", children: "Facilities" }), _jsx("button", { className: "p-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50", "aria-label": "Add facility", onClick: () => { setFacilityForm({ name: '', type: 'farm' }); setFacilityModalOpen(true); }, children: _jsx(Plus, { className: "h-4 w-4", "aria-hidden": true }) })] }), _jsxs("ul", { className: "divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden", children: [facilitiesForGeo.map((f) => (_jsx("li", { children: _jsxs("button", { className: `w-full text-left px-3 py-2 flex items-center justify-between ${selectedFacility === f.id ? 'bg-primary/5' : 'hover:bg-gray-50'}`, onClick: () => { setSelectedFacility(f.id); setSelectedTop(null); setSelectedSub(null); setSelectedPlant(null); }, children: [_jsxs("div", { className: "min-w-0", children: [_jsxs("div", { className: "text-base text-gray-900 truncate", children: [f.name, " ", _jsxs("span", { className: "text-sm text-gray-500", children: ["\u00B7 ", f.type] })] }), _jsxs("div", { className: "text-sm text-gray-500", children: [structureList.filter((s) => s.facility === f.id).length, " structures"] })] }), _jsx(ChevronRight, { className: "h-4 w-4 text-gray-400 shrink-0", "aria-hidden": true })] }) }, f.id))), facilitiesForGeo.length === 0 && (_jsx("li", { className: "px-3 py-2 text-base text-gray-500", children: "No facilities." }))] })] }) })), selectedFacility && (_jsx(Card, { className: "hidden lg:block", children: _jsxs("div", { className: "w-full min-w-0", children: [_jsxs("div", { className: "flex items-center justify-between mb-2", children: [_jsx("h2", { className: "text-base font-medium text-gray-900", children: "Structures" }), _jsx("button", { className: "p-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50", "aria-label": "Add structure", onClick: () => {
                                                 const f = facilityList.find((x) => x.id === selectedFacility);
                                                 const defType = (f?.type === 'building') ? 'room' : 'greenhouse';
-                                                setStructureForm({ name: '', type: defType, size: '' });
+                                                setStructureForm({ name: '', type: defType, size: '', usage: '', tents: [], racks: [] });
                                                 setStructureModalOpen(true);
                                             }, children: _jsx(Plus, { className: "h-4 w-4", "aria-hidden": true }) })] }), (() => {
                                     const tops = topsForFacility;
@@ -222,47 +326,113 @@ export default function Plants() {
                                                 }
                                                 return `${subs.length} areas . ${plural(plantCount, 'plant')}`;
                                             })();
-                                            return (_jsx("li", { children: _jsxs("button", { className: `w-full text-left px-3 py-2 flex items-center justify-between ${active ? 'bg-primary/5' : 'hover:bg-gray-50'}`, onClick: () => { setSelectedTop(loc.key); setSelectedSub(null); setSelectedPlant(null); }, children: [_jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-base text-gray-900 truncate", children: leftNameFromTop(loc.key, loc.type) }), _jsx("div", { className: "text-sm text-gray-500", children: summary })] }), _jsx(ChevronRight, { className: "h-4 w-4 text-gray-400 shrink-0", "aria-hidden": true })] }) }, loc.key));
+                                            return (_jsx("li", { children: _jsxs("button", { className: `w-full text-left px-3 py-2 flex items-center justify-between ${active ? 'bg-primary/5' : 'hover:bg-gray-50'}`, onClick: () => {
+                                                        setSelectedTop(loc.key);
+                                                        setSelectedSub(null);
+                                                        setSelectedPlant(null);
+                                                        // Scroll to equipment column
+                                                        setTimeout(() => {
+                                                            equipmentRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'start' });
+                                                        }, 50);
+                                                    }, children: [_jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-base text-gray-900 truncate", children: leftNameFromTop(loc.key, loc.type) }), _jsx("div", { className: "text-sm text-gray-500", children: summary })] }), _jsx(ChevronRight, { className: "h-4 w-4 text-gray-400 shrink-0", "aria-hidden": true })] }) }, loc.key));
                                         }) })) : (_jsx("div", { className: "border border-dashed border-gray-300 rounded-lg p-4 text-center text-base text-gray-700", children: "No structures." }));
-                                })()] }) })), selectedTop && (_jsx(Card, { children: _jsxs("div", { className: "w-full min-w-0", children: [_jsx("h2", { className: "text-base font-medium text-gray-900 mb-2", children: "Plants" }), (() => {
-                                    const loc = locations[selectedTop];
-                                    const plantsList = !selectedSub ? [] : (loc?.sublocations?.[selectedSub]?.plants || []);
-                                    return (selectedSub && plantsList.length > 0) ? (_jsx("ul", { className: "divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden", children: plantsList.map((p) => (_jsx("li", { children: _jsxs("button", { className: `w-full text-left px-3 py-2 flex items-center gap-2 ${selectedPlant?.id === p.id ? 'bg-primary/5' : 'hover:bg-gray-50'}`, onClick: () => setSelectedPlant(p), children: [_jsx(Sprout, { className: "h-3.5 w-3.5 text-emerald-600", "aria-hidden": true }), _jsx("span", { className: "text-base text-gray-900 truncate min-w-0", children: p.strain }), _jsx("span", { className: "ml-auto text-sm text-gray-500 shrink-0", children: p.id.slice(0, 6) })] }) }, p.id))) })) : (_jsx("div", { className: "text-base text-gray-500", children: !selectedSub ? 'Choose an area.' : 'No plants here.' }));
-                                })()] }) })), selectedPlant && (_jsx("div", { className: "w-full min-w-0", children: _jsx(PlantDetailsView, { plant: selectedPlant, onBack: () => setSelectedPlant(null) }) }))] }), geoModalOpen && (_jsx("div", { className: "fixed inset-0 bg-black/30 flex items-center justify-center z-50", children: _jsxs("div", { className: "bg-white rounded-xl shadow-xl w-[520px] max-w-[95vw] p-4", children: [_jsxs("div", { className: "flex items-center gap-2 mb-3", children: [_jsx(MapPin, { className: "h-5 w-5 text-primary", "aria-hidden": true }), _jsx("h3", { className: "text-base font-semibold text-gray-900", children: "Add geolocation" })] }), _jsxs("div", { className: "space-y-3", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Name" }), _jsx("input", { className: "w-full border border-gray-300 rounded-md px-2 py-1.5 text-base", value: geoForm.name, onChange: (e) => setGeoForm(v => ({ ...v, name: e.target.value })), placeholder: "e.g., Munich HQ" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Address" }), _jsx("input", { className: "w-full border border-gray-300 rounded-md px-2 py-1.5 text-base", value: geoForm.address, onChange: (e) => setGeoForm(v => ({ ...v, address: e.target.value })), placeholder: "Street, City\u2026" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Pick on map (mock)" }), _jsx("div", { className: "h-48 rounded-md border border-gray-200 bg-gray-100 flex items-center justify-center text-sm text-gray-500", children: "Map mock" })] })] }), _jsxs("div", { className: "mt-4 flex items-center justify-end gap-2", children: [_jsx("button", { className: "px-3 py-1.5 text-sm text-gray-700", onClick: () => setGeoModalOpen(false), children: "Cancel" }), _jsx("button", { className: "inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50", disabled: !geoForm.name.trim(), onClick: async () => {
-                                        const created = await api.createGeo({ name: geoForm.name.trim(), address: geoForm.address.trim() });
-                                        const gs = await api.getGeos();
-                                        setGeoList(gs);
-                                        setSelectedGeo(created.id);
-                                        setGeoModalOpen(false);
-                                        setGeoForm({ name: '', address: '' });
+                                })()] }) })), selectedTop && (_jsx("div", { ref: equipmentRef, className: "hidden lg:block", children: _jsx(Card, { children: _jsxs("div", { className: "w-full min-w-0", children: [_jsxs("div", { className: "flex items-center justify-between mb-2", children: [_jsx("h2", { className: "text-base font-medium text-gray-900", children: "Equipment" }), _jsx("button", { className: "p-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50", "aria-label": "Add equipment", onClick: () => setEquipModalOpen(true), children: _jsx(Plus, { className: "h-4 w-4", "aria-hidden": true }) })] }), _jsx("div", { className: "border border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-500", children: "No equipment" })] }) }) })), selectedPlant && (_jsx("div", { className: "w-full min-w-0", children: _jsx(PlantDetailsView, { plant: selectedPlant, onBack: () => setSelectedPlant(null) }) }))] }), geoModalOpen && (_jsx("div", { className: "fixed inset-0 bg-black/30 flex items-center justify-center z-50", children: _jsxs("div", { className: "bg-white rounded-xl shadow-xl w-[520px] max-w-[95vw] p-4", children: [_jsxs("div", { className: "flex items-center gap-2 mb-3", children: [_jsx(MapPin, { className: "h-5 w-5 text-primary", "aria-hidden": true }), _jsx("h3", { className: "text-base font-semibold text-gray-900", children: "Add geolocation" })] }), _jsxs("div", { className: "space-y-3", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Name" }), _jsx("input", { className: "w-full border border-gray-300 rounded-md px-2 py-1.5 text-base", value: geoForm.name, onChange: (e) => setGeoForm(v => ({ ...v, name: e.target.value })), placeholder: "e.g., Munich HQ" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Address" }), _jsx("input", { className: "w-full border border-gray-300 rounded-md px-2 py-1.5 text-base", value: geoForm.address, onChange: (e) => setGeoForm(v => ({ ...v, address: e.target.value })), placeholder: "Street, City\u2026" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Pick on map (mock)" }), _jsx("div", { className: "h-48 rounded-md border border-gray-200 bg-gray-100 flex items-center justify-center text-sm text-gray-500", children: "Map mock" })] })] }), _jsxs("div", { className: "mt-4 flex items-center justify-end gap-2", children: [_jsx("button", { className: "px-3 py-1.5 text-sm text-gray-700", onClick: () => setGeoModalOpen(false), children: "Cancel" }), _jsx("button", { className: "inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50", disabled: !geoForm.name.trim(), onClick: async () => {
+                                        try {
+                                            const created = await api.createGeo({ name: geoForm.name.trim(), address: geoForm.address.trim() });
+                                            const gs = await api.getGeos();
+                                            setGeoList(gs);
+                                            setSelectedGeo(created.id);
+                                            setGeoModalOpen(false);
+                                            setGeoForm({ name: '', address: '' });
+                                        }
+                                        catch (e) {
+                                            showError(e);
+                                        }
                                     }, children: "Confirm" })] })] }) })), facilityModalOpen && (_jsx("div", { className: "fixed inset-0 bg-black/30 flex items-center justify-center z-50", children: _jsxs("div", { className: "bg-white rounded-xl shadow-xl w-[520px] max-w-[95vw] p-4", children: [_jsxs("div", { className: "flex items-center gap-2 mb-3", children: [_jsx(Layers, { className: "h-5 w-5 text-primary", "aria-hidden": true }), _jsx("h3", { className: "text-base font-semibold text-gray-900", children: "Add facility" })] }), _jsxs("div", { className: "space-y-3", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Type" }), _jsxs("select", { className: "w-full border border-gray-300 rounded-md px-2 py-1.5 text-base", value: facilityForm.type, onChange: (e) => setFacilityForm(v => ({ ...v, type: e.target.value })), children: [_jsx("option", { value: "farm", children: "Farm" }), _jsx("option", { value: "building", children: "Building" })] })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Name" }), _jsx("input", { className: "w-full border border-gray-300 rounded-md px-2 py-1.5 text-base", value: facilityForm.name, onChange: (e) => setFacilityForm(v => ({ ...v, name: e.target.value })), placeholder: "e.g., North Farm or Building A" })] })] }), _jsxs("div", { className: "mt-4 flex items-center justify-end gap-2", children: [_jsx("button", { className: "px-3 py-1.5 text-sm text-gray-700", onClick: () => setFacilityModalOpen(false), children: "Cancel" }), _jsx("button", { className: "inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50", disabled: !selectedGeo || !facilityForm.name.trim(), onClick: async () => {
                                         if (!selectedGeo)
                                             return;
-                                        const created = await api.createFacility({ geoId: selectedGeo, name: facilityForm.name.trim(), type: facilityForm.type });
-                                        const fs = await api.getFacilities(selectedGeo);
-                                        setFacilityList(fs);
-                                        setSelectedFacility(created.id);
-                                        setFacilityModalOpen(false);
-                                        setFacilityForm({ name: '', type: 'farm' });
+                                        try {
+                                            const created = await api.createFacility({ geoId: selectedGeo, name: facilityForm.name.trim(), type: facilityForm.type });
+                                            const fs = await api.getFacilities(selectedGeo);
+                                            setFacilityList(fs);
+                                            setSelectedFacility(created.id);
+                                            setFacilityModalOpen(false);
+                                            setFacilityForm({ name: '', type: 'farm' });
+                                        }
+                                        catch (e) {
+                                            showError(e);
+                                        }
                                     }, children: "Confirm" })] })] }) })), structureModalOpen && selectedFacility && (_jsx("div", { className: "fixed inset-0 bg-black/30 flex items-center justify-center z-50", children: _jsxs("div", { className: "bg-white rounded-xl shadow-xl w-[520px] max-w-[95vw] p-4", children: [_jsxs("div", { className: "flex items-center gap-2 mb-3", children: [_jsx(Layers, { className: "h-5 w-5 text-primary", "aria-hidden": true }), _jsx("h3", { className: "text-base font-semibold text-gray-900", children: "Add structure" })] }), _jsxs("div", { className: "space-y-3", children: [(() => {
-                                    const f = facilityList.find((x) => x.name === selectedFacility);
+                                    // selectedFacility holds the facility id; match by id
+                                    const f = facilityList.find((x) => x.id === selectedFacility);
                                     const allowed = (f?.type === 'building') ? 'room' : 'greenhouse';
                                     // Ensure form type always matches allowed
                                     if (structureForm.type !== allowed) {
                                         setStructureForm((v) => ({ ...v, type: allowed }));
                                     }
                                     return (_jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Type" }), _jsx("select", { className: "w-full border border-gray-300 rounded-md px-2 py-1.5 text-base bg-gray-50", value: allowed, disabled: true, children: _jsx("option", { value: allowed, children: allowed === 'room' ? 'Room' : 'Greenhouse' }) })] }));
-                                })(), _jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Name" }), _jsx("input", { className: "w-full border border-gray-300 rounded-md px-2 py-1.5 text-base", value: structureForm.name, onChange: (e) => setStructureForm((v) => ({ ...v, name: e.target.value })), placeholder: "e.g., Room 1 or Greenhouse 2" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Size (m\u00B2)" }), _jsx("input", { type: "number", min: "0", step: "0.1", className: "w-full border border-gray-300 rounded-md px-2 py-1.5 text-base", value: structureForm.size, onChange: (e) => setStructureForm((v) => ({ ...v, size: e.target.value })), placeholder: "e.g., 120" })] })] }), _jsxs("div", { className: "mt-4 flex items-center justify-end gap-2", children: [_jsx("button", { className: "px-3 py-1.5 text-sm text-gray-700", onClick: () => setStructureModalOpen(false), children: "Cancel" }), _jsx("button", { className: "inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50", disabled: !structureForm.name.trim() || structureForm.size.trim() === '', onClick: async () => {
+                                })(), _jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Name" }), (() => {
+                                            const f = facilityList.find((x) => x.id === selectedFacility);
+                                            const allowed = (f?.type === 'building') ? 'room' : 'greenhouse';
+                                            const ph = allowed === 'room' ? 'e.g., Room 1' : 'e.g., Greenhouse 2';
+                                            return (_jsx("input", { className: "w-full border border-gray-300 rounded-md px-2 py-1.5 text-base", value: structureForm.name, onChange: (e) => setStructureForm((v) => ({ ...v, name: e.target.value })), placeholder: ph }));
+                                        })()] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Size (m\u00B2)" }), _jsx("input", { type: "number", min: "0", step: "0.1", className: "w-full border border-gray-300 rounded-md px-2 py-1.5 text-base", value: structureForm.size, onChange: (e) => setStructureForm((v) => ({ ...v, size: e.target.value })), placeholder: "e.g., 120" })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm text-gray-700 mb-1", children: "Usage" }), (() => {
+                                            const f = facilityList.find((x) => x.id === selectedFacility);
+                                            const allowed = (f?.type === 'building') ? 'room' : 'greenhouse';
+                                            const options = allowed === 'greenhouse' ? ['Vegetative', 'Flowering'] : ['Vegetative', 'Flowering', 'Drying', 'Storage', 'Racks/Tents'];
+                                            // Ensure selection remains valid when allowed changes
+                                            if (structureForm.usage && !options.includes(structureForm.usage)) {
+                                                setStructureForm((v) => ({ ...v, usage: '', tents: [], racks: [] }));
+                                            }
+                                            return (_jsxs("select", { className: "w-full border border-gray-300 rounded-md px-2 py-1.5 text-base", value: structureForm.usage, onChange: (e) => {
+                                                    const next = e.target.value;
+                                                    setStructureForm((v) => ({ ...v, usage: next, tents: next === 'Racks/Tents' ? (v.tents?.length ? v.tents : [{ widthFt: '', lengthFt: '' }]) : [], racks: next === 'Racks/Tents' ? (v.racks?.length ? v.racks : [{ widthCm: '', lengthCm: '', shelves: '' }]) : [] }));
+                                                }, children: [_jsx("option", { value: "", children: "Select\u2026" }), options.map(o => (_jsx("option", { value: o, children: o }, o)))] }));
+                                        })()] }), (() => {
+                                    const f = facilityList.find((x) => x.id === selectedFacility);
+                                    const allowed = (f?.type === 'building') ? 'room' : 'greenhouse';
+                                    if (allowed !== 'room' || structureForm.usage !== 'Racks/Tents')
+                                        return null;
+                                    // Helper to compute total tent+rack area in m^2
+                                    const ft2m = (ft) => ft * 0.3048;
+                                    const tentAreaM2 = (w, l) => ft2m(w) * ft2m(l);
+                                    const totalTentM2 = (structureForm.tents || []).reduce((sum, t) => sum + (tentAreaM2(Number(t.widthFt || 0), Number(t.lengthFt || 0)) || 0), 0);
+                                    const cm2m = (cm) => cm / 100;
+                                    const rackAreaM2 = (wcm, lcm) => cm2m(wcm) * cm2m(lcm);
+                                    const totalRackM2 = (structureForm.racks || []).reduce((sum, r) => sum + (rackAreaM2(Number(r.widthCm || 0), Number(r.lengthCm || 0)) || 0), 0);
+                                    const roomM2 = Number(structureForm.size || '0') || 0;
+                                    const over = (totalTentM2 + totalRackM2) > roomM2 + 1e-6;
+                                    return (_jsxs("div", { className: "rounded-md border border-gray-200 p-3", children: [_jsxs("div", { className: "flex items-center justify-between mb-2", children: [_jsx("label", { className: "block text-sm text-gray-700", children: "Racks/Tents for this room" }), _jsx("button", { type: "button", className: "inline-flex items-center gap-1 px-2 py-1 rounded-md border border-primary/40 text-primary text-xs hover:bg-primary/5", onClick: () => setStructureForm(v => ({ ...v, tents: [...(v.tents || []), { widthFt: '', lengthFt: '' }] })), children: "Add tent (ft \u00D7 ft)" })] }), _jsx("div", { className: "space-y-2", children: (structureForm.tents || []).map((t, ti) => (_jsxs("div", { className: "flex items-center gap-2", children: [_jsxs("span", { className: "text-xs text-gray-600", children: ["Tent ", ti + 1] }), _jsx("input", { className: "w-20 border-gray-300 rounded-md focus:ring-primary focus:border-primary", placeholder: "Width ft", inputMode: "numeric", value: t.widthFt, onChange: (e) => setStructureForm(v => ({ ...v, tents: v.tents.map((x, i) => i === ti ? { ...x, widthFt: e.target.value } : x) })) }), _jsx("span", { className: "text-gray-500", children: "\u00D7" }), _jsx("input", { className: "w-20 border-gray-300 rounded-md focus:ring-primary focus:border-primary", placeholder: "Length ft", inputMode: "numeric", value: t.lengthFt, onChange: (e) => setStructureForm(v => ({ ...v, tents: v.tents.map((x, i) => i === ti ? { ...x, lengthFt: e.target.value } : x) })) }), _jsx("button", { type: "button", className: "ml-auto text-xs text-red-600 hover:underline", onClick: () => setStructureForm(v => ({ ...v, tents: v.tents.filter((_, i) => i !== ti) })), children: "Remove" })] }, ti))) }), _jsxs("div", { className: "flex items-center justify-between mt-3 mb-2", children: [_jsx("label", { className: "block text-sm text-gray-700", children: "Add rack (cm \u00D7 cm + shelves)" }), _jsx("button", { type: "button", className: "inline-flex items-center gap-1 px-2 py-1 rounded-md border border-primary/40 text-primary text-xs hover:bg-primary/5", onClick: () => setStructureForm(v => ({ ...v, racks: [...(v.racks || []), { widthCm: '', lengthCm: '', shelves: '' }] })), children: "Add rack" })] }), _jsx("div", { className: "space-y-2", children: (structureForm.racks || []).map((r, ri) => (_jsxs("div", { className: "flex items-center gap-2", children: [_jsxs("span", { className: "text-xs text-gray-600", children: ["Rack ", ri + 1] }), _jsx("input", { className: "w-24 border-gray-300 rounded-md focus:ring-primary focus:border-primary", placeholder: "Width cm", inputMode: "numeric", value: r.widthCm, onChange: (e) => setStructureForm(v => ({ ...v, racks: v.racks.map((x, i) => i === ri ? { ...x, widthCm: e.target.value } : x) })) }), _jsx("span", { className: "text-gray-500", children: "\u00D7" }), _jsx("input", { className: "w-24 border-gray-300 rounded-md focus:ring-primary focus:border-primary", placeholder: "Length cm", inputMode: "numeric", value: r.lengthCm, onChange: (e) => setStructureForm(v => ({ ...v, racks: v.racks.map((x, i) => i === ri ? { ...x, lengthCm: e.target.value } : x) })) }), _jsx("span", { className: "text-gray-500", children: "\u00B7" }), _jsx("input", { className: "w-24 border-gray-300 rounded-md focus:ring-primary focus:border-primary", placeholder: "# Shelves", inputMode: "numeric", value: r.shelves, onChange: (e) => setStructureForm(v => ({ ...v, racks: v.racks.map((x, i) => i === ri ? { ...x, shelves: e.target.value } : x) })) }), _jsx("button", { type: "button", className: "ml-auto text-xs text-red-600 hover:underline", onClick: () => setStructureForm(v => ({ ...v, racks: v.racks.filter((_, i) => i !== ri) })), children: "Remove" })] }, ri))) }), _jsxs("div", { className: `mt-2 text-xs ${over ? 'text-red-600' : 'text-gray-600'}`, children: ["Total area (tents+racks): ", (totalTentM2 + totalRackM2).toFixed(2), " m\u00B2 ", roomM2 ? `(room: ${roomM2.toFixed(2)} m²)` : '', over && _jsx("span", { className: "ml-2", children: "Exceeds room size" })] })] }));
+                                })()] }), _jsxs("div", { className: "mt-4 flex items-center justify-end gap-2", children: [_jsx("button", { className: "px-3 py-1.5 text-sm text-gray-700", onClick: () => setStructureModalOpen(false), children: "Cancel" }), _jsx("button", { className: "inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50", disabled: !structureForm.name.trim() || structureForm.size.trim() === '' || !structureForm.usage || (structureForm.usage === 'Racks/Tents' && (() => {
+                                        const ft2m = (ft) => ft * 0.3048;
+                                        const areaT = (w, l) => ft2m(w) * ft2m(l);
+                                        const totalT = (structureForm.tents || []).reduce((s, t) => s + areaT(Number(t.widthFt || 0), Number(t.lengthFt || 0)), 0);
+                                        const cm2m = (cm) => cm / 100;
+                                        const areaR = (w, l) => cm2m(w) * cm2m(l);
+                                        const totalR = (structureForm.racks || []).reduce((s, r) => s + areaR(Number(r.widthCm || 0), Number(r.lengthCm || 0)), 0);
+                                        const room = Number(structureForm.size || '0') || 0;
+                                        return totalT + totalR > room + 1e-6;
+                                    })()), onClick: async () => {
                                         if (!selectedFacility)
                                             return;
-                                        const name = structureForm.name.trim();
-                                        const type = structureForm.type;
-                                        const sizeNum = Number(structureForm.size);
-                                        await api.createStructure({ facilityId: selectedFacility, name, type, size: isNaN(sizeNum) ? 0 : sizeNum });
-                                        const list = await api.getStructures(selectedFacility);
-                                        setStructureList(list.map((s) => ({ id: s.id, facility: s.facility?.id, name: s.name, type: s.type, size: s.size })));
-                                        setStructureModalOpen(false);
-                                        setStructureForm({ name: '', type: 'room', size: '' });
+                                        try {
+                                            const name = structureForm.name.trim();
+                                            // Enforce allowed type based on facility kind
+                                            const f = facilityList.find((x) => x.id === selectedFacility);
+                                            const allowedType = (f?.type === 'building') ? 'room' : 'greenhouse';
+                                            const type = allowedType;
+                                            const sizeNum = Number(structureForm.size);
+                                            const tents = structureForm.usage === 'Racks/Tents' ? (structureForm.tents || []).map(t => ({ widthFt: Number(t.widthFt || 0), lengthFt: Number(t.lengthFt || 0) })) : undefined;
+                                            const racks = structureForm.usage === 'Racks/Tents' ? (structureForm.racks || []).map(r => ({ widthCm: Number(r.widthCm || 0), lengthCm: Number(r.lengthCm || 0), shelves: Number(r.shelves || 0) })) : undefined;
+                                            await api.createStructure({ facilityId: selectedFacility, name, type, size: isNaN(sizeNum) ? 0 : sizeNum, usage: structureForm.usage, tents, racks });
+                                            const list = await api.getStructures(selectedFacility);
+                                            setStructureList(list.map((s) => ({ id: s.id, facility: s.facility?.id, name: s.name, type: s.type, size: s.size, usage: s.usage, tents: s.tents, racks: s.racks })));
+                                            setStructureModalOpen(false);
+                                            setStructureForm({ name: '', type: 'room', size: '', usage: '', tents: [], racks: [] });
+                                        }
+                                        catch (e) {
+                                            showError(e);
+                                        }
                                     }, children: "Confirm" })] })] }) }))] }));
 }
 function TreeView({ items, expandedTop, expandedSub, onToggleTop, onToggleSub, onSelectPlant, }) {

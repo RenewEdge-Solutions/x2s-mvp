@@ -1,0 +1,48 @@
+Operator.Farmer:
+after the user added a room the next section should be equipment. like in the other columns the user should have a add button to add equipment. it should look the same like Geolocations, facilities and structures.
+since the width is not enough maximum 3 columns should be visible. is there are more than 4 levels / columns the first the first ones shoudl dissappear. if the user clicks back on the level / column before the view should change again. e.g. VIEW 1 2 3 - User clicks on 4 - VIEW 2 3 4 - User clicks on 3 - VIEW 1 2 3
+the user can add different equipment to each room and assign it to racks or tents in the room or just the room itself. i want to have it like this: the user click on the + button and a modal
+opens where the user can use between common equipment what is used in commercial cannabis farms and also give the most important specs to all devices. also each device can be linked
+to an IOt device. this should be a mockup
+
+Greenhouse should have the option how many beds it have
+
+Notifications for empty beds and racks and rooms and greenhouses and highlight elements what represents these so the user directly see them
+make dashboard data mocks clickable and useable (only mocks)
+Fill production with mock data
+fill inventory wih mock data
+add funtion to add items to inventory
+fill calender with mock data
+add function to add calender events
+add mock function to activate email Notifications
+add calender sync to phones or laptops through standard tools (mockup)
+add plants page to have just an overview of all plants, this should be a table wwith search, filter and sort options. here the user can add plants and batches of plants and assign them to facilities and give them descriptions etc.
+Fill dashboard with Mock data
+
+Regulator:
+Create role based view for regulator
+create a dashboard view
+create approvements view (facilities, users, changes, etc.)
+create regulatory view (add, edit, delete regulations and policies)
+should be able to send general notifications to user(s)
+create user management view (add, edit, block, delete)
+create view user data view (sales data, plants data, etc)
+create reports view (should look like the reports page for farmers)
+notifications about critical activity of all users
+
+Auditor:
+create role based view for Auditor
+notifications about critical activity or status on users or plants 
+notification about Audits
+create calender (should look the same like for farmers) with auto generated events like mandatory audits (every farmer gets an audit per year)
+create user data view (auditor should be able to see all user data)
+
+Operator.Seller:
+Create role based View for regulator
+Create POS View (mockup of a POS system)
+Create Invenory View (should look like the inventory like for farmers)
+create reports view (should look like the reports from farmer)
+
+Operator.Lab:
+Create role based View for Labs
+Create Lab Results View (user should be able to upload tests results) - mockup

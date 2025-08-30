@@ -47,8 +47,8 @@ export default function NavBar() {
           <Link className={`${isActive('/dashboard')} inline-flex items-center gap-1`} to="/dashboard">
             <Wand2 className="h-4 w-4" aria-hidden /> Dashboard
           </Link>
-          <Link className={`${isActive('/production')} inline-flex items-center gap-1`} to="/production">
-            <Sprout className="h-4 w-4" aria-hidden /> Production
+          <Link className={`${isActive('/facilities')} inline-flex items-center gap-1`} to="/facilities">
+            <Sprout className="h-4 w-4" aria-hidden /> Facilities
           </Link>
           <Link className={`${isActive('/inventory')} inline-flex items-center gap-1`} to="/inventory">
             <PackageIcon className="h-4 w-4" aria-hidden /> Inventory
@@ -171,7 +171,7 @@ function NotificationsMenu() {
         });
       }
       if (!p.harvested && age >= 12 && age <= 16) {
-    out.push({ id: `transplant-${p.id}`, text: `Transplant recommended: ${p.strain} (${p.location})`, severity: 'info', href: '/production' });
+  out.push({ id: `transplant-${p.id}`, text: `Transplant recommended: ${p.strain} (${p.location})`, severity: 'info', href: '/facilities' });
       }
     });
     harvests.forEach((h: any) => {

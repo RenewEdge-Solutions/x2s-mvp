@@ -11,19 +11,64 @@ async function seed() {
   try {
     const usersService = app.get(UsersService);
 
-    // Seed users
+    // Seed requested users
+    const modulesAll = ['cannabis', 'alcohol', 'explosives', 'mushrooms'];
     await usersService.upsert({
-      username: 'Daniel.Veselski',
-      password: 'pass123',
-      role: 'Operator',
-      firstName: 'Daniel',
-      lastName: 'Veselski',
-      email: 'daniel.veselski@example.com',
-      phone: '+1 (555) 555-0101',
-      address: '123 Aurora Ave, Springfield, USA',
-      modules: ['cannabis'],
+      username: 'Farmer',
+      password: '1234',
+      role: 'Operator.Farmer',
+      firstName: 'Farm',
+      lastName: 'Operator',
+      email: 'farmer@example.com',
+      phone: '+1 (555) 555-1001',
+      address: '100 Farm Lane, AgriTown',
+      modules: modulesAll,
     });
-    console.log('Seed complete: created/updated user Daniel.Veselski only.');
+    await usersService.upsert({
+      username: 'Regulator',
+      password: '1234',
+      role: 'Regulator',
+      firstName: 'Regula',
+      lastName: 'Tor',
+      email: 'regulator@example.com',
+      phone: '+1 (555) 555-1002',
+      address: '10 Gov Ave, Capital City',
+      modules: modulesAll,
+    });
+    await usersService.upsert({
+      username: 'Auditor',
+      password: '1234',
+      role: 'Auditor',
+      firstName: 'Audit',
+      lastName: 'Or',
+      email: 'auditor@example.com',
+      phone: '+1 (555) 555-1003',
+      address: '42 Ledger St, Verifyville',
+      modules: modulesAll,
+    });
+    await usersService.upsert({
+      username: 'Shop',
+      password: '1234',
+      role: 'Operator.Shop',
+      firstName: 'Retail',
+      lastName: 'Shop',
+      email: 'shop@example.com',
+      phone: '+1 (555) 555-1004',
+      address: '77 Market Rd, Commerce City',
+      modules: modulesAll,
+    });
+    await usersService.upsert({
+      username: 'Lab',
+      password: '1234',
+      role: 'Operator.Lab',
+      firstName: 'Quality',
+      lastName: 'Lab',
+      email: 'lab@example.com',
+      phone: '+1 (555) 555-1005',
+      address: '5 Science Way, Testtown',
+      modules: modulesAll,
+    });
+    console.log('Seed complete: Farmer, Regulator, Auditor, Shop, Lab.');
   } catch (err) {
     console.error('Seed error:', err);
     process.exitCode = 1;

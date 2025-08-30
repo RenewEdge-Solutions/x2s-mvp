@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import Card from '../components/Card';
 import { api } from '../lib/api';
 import { useModule } from '../context/ModuleContext';
-import { Sprout, Map as MapIcon, Layers, ChevronRight, ChevronLeft, Info, ChevronDown, Plus, MapPin, Trash } from 'lucide-react';
+import { Sprout, Map as MapIcon, Layers, ChevronRight, ChevronLeft, Info, ChevronDown, Plus, MapPin } from 'lucide-react';
 
 type Plant = {
   id: string;
@@ -110,20 +110,31 @@ function leftNameFromTop(topKey: string, type: TopLocation['type']): string {
 
 export default function Plants() {
   const { activeModule } = useModule();
+  // Ref to equipment pane for scrollIntoView
+  const equipmentRef = useRef<HTMLDivElement>(null);
   const [plants, setPlants] = useState<Plant[]>([]);
   const [selectedTop, setSelectedTop] = useState<string | null>(null);
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
-  const [selectedGeo, setSelectedGeo] = useState<string | null>(null); // geo id
-  const [selectedFacility, setSelectedFacility] = useState<string | null>(null); // facility id
+  const [selectedGeo, setSelectedGeo] = useState<string | null>(null);
+  const [selectedFacility, setSelectedFacility] = useState<string | null>(null);
+  // (Removed duplicate modal state declarations and unused updateWindow)
   type Geo = { id: string; name: string; address?: string; lat?: number; lng?: number };
   type Facility = { id: string; name: string; type: 'farm' | 'building'; geo: { id: string } };
   const [geoList, setGeoList] = useState<Geo[]>([]);
   const [facilityList, setFacilityList] = useState<Facility[]>([]);
+  // Cache facilities per geo to show counts without extra clicks
+  const [facilitiesByGeo, setFacilitiesByGeo] = useState<Record<string, Facility[]>>({});
   // Removed Add Location wizard and draft preview
   const [expandedTop, setExpandedTop] = useState<Record<string, boolean>>({});
   const [expandedSub, setExpandedSub] = useState<Record<string, boolean>>({});
   // Removed Unassigned from Areas UI
+
+  // Simple error helper to surface network issues
+  const showError = (e: any) => {
+    const msg = e?.message ? String(e.message) : 'Unknown error';
+    alert(`Request failed. Please ensure the API is running and reachable.\n\nDetails: ${msg}`);
+  };
 
   useEffect(() => {
     if (activeModule === 'cannabis') {
@@ -136,6 +147,57 @@ export default function Plants() {
     setSelectedPlant(null);
   }, [activeModule]);
 
+  // Load geolocations on mount/when module is cannabis
+  useEffect(() => {
+    if (activeModule !== 'cannabis') return;
+    (async () => {
+      try {
+        const gs = await api.getGeos();
+        setGeoList(gs);
+      } catch {
+        setGeoList([]);
+      }
+    })();
+  }, [activeModule]);
+
+  // When a geolocation is selected, load its facilities
+  useEffect(() => {
+    if (!selectedGeo) {
+      setFacilityList([]);
+      return;
+    }
+    (async () => {
+      try {
+        const fs = await api.getFacilities(selectedGeo);
+        setFacilityList(fs);
+  // also cache in facilitiesByGeo for counts
+  setFacilitiesByGeo((prev) => ({ ...prev, [selectedGeo]: fs }));
+      } catch {
+        setFacilityList([]);
+      }
+    })();
+  }, [selectedGeo]);
+
+  // When a facility is selected, load its structures
+  useEffect(() => {
+    if (!selectedFacility) return;
+    (async () => {
+      try {
+        const list = await api.getStructures(selectedFacility);
+        const mapped = list.map((s: any) => ({ id: s.id, facility: s.facility?.id, name: s.name, type: s.type, size: s.size }));
+        // Merge with any structures from other facilities
+        setStructureList((prev: any[]) => {
+          const others = prev.filter((x) => x.facility !== selectedFacility);
+          return [...others, ...mapped];
+        });
+      } catch {
+        // no-op
+      }
+    })();
+  }, [selectedFacility]);
+
+  
+
   const locations = useMemo(() => buildLocations(plants.filter((p) => !p.harvested)), [plants]);
   // Derive geolocations from the first segment before first comma in facility name if available, else use full facility name.
   // Geolocations come from local storage only (empty state supported)
@@ -145,6 +207,59 @@ export default function Plants() {
     return facilityList.filter(f => f.geo?.id === selectedGeo).sort((a,b)=> a.name.localeCompare(b.name));
   }, [facilityList, selectedGeo]);
   
+  // Prefetch facilities for all geos so counters are populated
+  useEffect(() => {
+    if (geos.length === 0) return;
+    (async () => {
+      try {
+        const entries = await Promise.all(
+          geos.map(async (g) => {
+            try {
+              const fs = await api.getFacilities(g.id);
+              return [g.id, fs] as const;
+            } catch {
+              return [g.id, []] as const;
+            }
+          })
+        );
+        setFacilitiesByGeo((prev) => {
+          const next = { ...prev } as Record<string, Facility[]>;
+          for (const [gid, fs] of entries) next[gid] = fs;
+          return next;
+        });
+      } catch {
+        // ignore
+      }
+    })();
+  }, [geos]);
+
+  // Prefetch structures for all facilities in current geolocation so facility counters show immediately
+  useEffect(() => {
+    if (facilitiesForGeo.length === 0) return;
+    (async () => {
+      const ids = facilitiesForGeo.map((f) => f.id);
+      try {
+        const lists = await Promise.all(
+          ids.map(async (fid) => {
+            try {
+              const list = await api.getStructures(fid);
+              return list.map((s: any) => ({ id: s.id, facility: s.facility?.id, name: s.name, type: s.type, size: s.size }));
+            } catch {
+              return [] as any[];
+            }
+          })
+        );
+        const flattened = ([] as any[]).concat(...lists);
+        setStructureList((prev: any[]) => {
+          const toExclude = new Set(ids);
+          const others = prev.filter((x) => !toExclude.has(x.facility));
+          return [...others, ...flattened];
+        });
+      } catch {
+        // ignore
+      }
+    })();
+  }, [facilitiesForGeo]);
 
   // Modals state
   const [geoModalOpen, setGeoModalOpen] = useState(false);
@@ -152,14 +267,16 @@ export default function Plants() {
   const [facilityModalOpen, setFacilityModalOpen] = useState(false);
   const [facilityForm, setFacilityForm] = useState<{ name: string; type: 'farm' | 'building' }>({ name: '', type: 'farm' });
   // Structures (per facility)
-  type Structure = { facility: string; type: 'room' | 'greenhouse'; name: string; size?: number };
+  type Structure = { facility: string; type: 'room' | 'greenhouse'; name: string; size?: number; usage?: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents'; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> };
   const loadStructures = (): Structure[] => {
     try { return JSON.parse(localStorage.getItem('mvp.structures') || '[]'); } catch { return []; }
   };
   const [structureList, setStructureList] = useState<Structure[]>(loadStructures);
   const persistStructures = (arr: Structure[]) => { setStructureList(arr); localStorage.setItem('mvp.structures', JSON.stringify(arr)); };
   const [structureModalOpen, setStructureModalOpen] = useState(false);
-  const [structureForm, setStructureForm] = useState<{ name: string; type: 'room' | 'greenhouse'; size: string }>({ name: '', type: 'room', size: '' });
+  // Equipment modal state
+  const [equipModalOpen, setEquipModalOpen] = useState(false);
+  const [structureForm, setStructureForm] = useState<{ name: string; type: 'room' | 'greenhouse'; size: string; usage: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents' | ''; tents: Array<{ widthFt: string; lengthFt: string }>; racks: Array<{ widthCm: string; lengthCm: string; shelves: string }> }>({ name: '', type: 'room', size: '', usage: '', tents: [], racks: [] });
   // Structures available for the currently selected facility
   const topsForFacility = useMemo(() => {
     if (!selectedFacility) return [] as TopLocation[];
@@ -193,31 +310,8 @@ export default function Plants() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2">
-          <MapIcon className="h-6 w-6" aria-hidden /> Production
+          <MapIcon className="h-6 w-6" aria-hidden /> Facilities
         </h1>
-        <div className="flex items-center gap-2">
-          <button
-            className="p-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
-            title="Reset local data"
-            aria-label="Reset local data"
-            onClick={() => {
-              // Clear local-only MVP data
-              localStorage.removeItem('mvp.geos');
-              localStorage.removeItem('mvp.facilities');
-              localStorage.removeItem('mvp.structures');
-              setGeoList([]);
-              setFacilityList([]);
-              setStructureList([]);
-              setSelectedGeo(null);
-              setSelectedFacility(null);
-              setSelectedTop(null);
-              setSelectedSub(null);
-              setSelectedPlant(null);
-            }}
-          >
-            <Trash className="h-4 w-4" aria-hidden />
-          </button>
-        </div>
       </div>
 
       {/* Compact selectors for small/medium screens */}
@@ -247,7 +341,7 @@ export default function Plants() {
               >
                 <option value="">Select…</option>
                 {facilitiesForGeo.map((f)=> (
-                  <option key={f.name} value={f.name}>{f.name} · {f.type}</option>
+                  <option key={f.id} value={f.id}>{f.name} · {f.type}</option>
                 ))}
               </select>
             </div>
@@ -287,10 +381,10 @@ export default function Plants() {
         </Card>
       </div>
 
-      <div className="grid gap-4 items-start grid-cols-1 md:[grid-template-columns:280px_minmax(0,1fr)] lg:[grid-template-columns:280px_280px_minmax(0,1fr)] xl:[grid-template-columns:280px_280px_minmax(0,1fr)]">
-        {/* Pane 1: Geolocations */}
-        {!selectedPlant && (
-        <Card className="hidden xl:block">
+  <div className="grid gap-4 items-start grid-cols-1 md:[grid-template-columns:280px_minmax(0,1fr)] lg:[grid-template-columns:280px_280px_minmax(0,1fr)] xl:[grid-template-columns:280px_280px_280px_280px_minmax(0,1fr)]">
+  {/* Pane 1: Geolocations */}
+  {!selectedPlant && (
+  <Card className="hidden xl:block">
           <div className="w-full min-w-0">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-base font-medium text-gray-900">Geolocations</h2>
@@ -313,7 +407,7 @@ export default function Plants() {
                       >
                         <div className="min-w-0">
                           <div className="text-base text-gray-900 truncate">{g.name}</div>
-                          <div className="text-sm text-gray-500">{facilityList.filter(f=>f.geo?.id===g.id).length} facilities</div>
+                          <div className="text-sm text-gray-500">{(facilitiesByGeo[g.id] || []).length} facilities</div>
                         </div>
                         <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" aria-hidden />
                       </button>
@@ -326,7 +420,7 @@ export default function Plants() {
             )}
           </div>
         </Card>
-        )}
+  )}
 
         {/* Pane 2: Areas within selected location */}
         {/* Pane 2: Facilities for selected geolocation */}
@@ -344,27 +438,27 @@ export default function Plants() {
                 </button>
               </div>
               <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
-                {facilitiesForGeo.map((f)=> (
-                  <li key={f.id}>
-                    <button
-                      className={`w-full text-left px-3 py-2 flex items-center justify-between ${selectedFacility === f.id ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
-                      onClick={() => { setSelectedFacility(f.id); setSelectedTop(null); setSelectedSub(null); setSelectedPlant(null); }}
-                    >
-                      <div className="min-w-0">
-                        <div className="text-base text-gray-900 truncate">{f.name} <span className="text-sm text-gray-500">· {f.type}</span></div>
-                        <div className="text-sm text-gray-500">{selectedFacility === f.id ? structureList.length : 0} structures</div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" aria-hidden />
-                    </button>
-                  </li>
-                ))}
-                {facilitiesForGeo.length === 0 && (
-                  <li className="px-3 py-2 text-base text-gray-500">No facilities.</li>
-                )}
-              </ul>
-            </div>
-          </Card>
-        )}
+          {facilitiesForGeo.map((f)=> (
+            <li key={f.id}>
+              <button
+                className={`w-full text-left px-3 py-2 flex items-center justify-between ${selectedFacility === f.id ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
+                onClick={() => { setSelectedFacility(f.id); setSelectedTop(null); setSelectedSub(null); setSelectedPlant(null); }}
+              >
+                <div className="min-w-0">
+                  <div className="text-base text-gray-900 truncate">{f.name} <span className="text-sm text-gray-500">· {f.type}</span></div>
+                  <div className="text-sm text-gray-500">{structureList.filter((s:any) => s.facility === f.id).length} structures</div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" aria-hidden />
+              </button>
+            </li>
+          ))}
+          {facilitiesForGeo.length === 0 && (
+            <li className="px-3 py-2 text-base text-gray-500">No facilities.</li>
+          )}
+        </ul>
+      </div>
+    </Card>
+  )}
 
         {/* Pane 3: Structures (Rooms/Greenhouses) within selected facility */}
         {selectedFacility && (
@@ -378,7 +472,7 @@ export default function Plants() {
                   onClick={() => {
                     const f = facilityList.find((x)=> x.id === selectedFacility);
                     const defType: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
-          setStructureForm({ name: '', type: defType, size: '' });
+                    setStructureForm({ name: '', type: defType, size: '', usage: '' as any, tents: [], racks: [] });
                     setStructureModalOpen(true);
                   }}
                 >
@@ -419,7 +513,15 @@ export default function Plants() {
                         <li key={loc.key}>
                           <button
                             className={`w-full text-left px-3 py-2 flex items-center justify-between ${active ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
-                            onClick={() => { setSelectedTop(loc.key); setSelectedSub(null); setSelectedPlant(null); }}
+                            onClick={() => {
+                              setSelectedTop(loc.key);
+                              setSelectedSub(null);
+                              setSelectedPlant(null);
+                              // Scroll to equipment column
+                              setTimeout(() => {
+                                equipmentRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'start' });
+                              }, 50);
+                            }}
                           >
                             <div className="min-w-0">
                               <div className="text-base text-gray-900 truncate">{leftNameFromTop(loc.key, loc.type)}</div>
@@ -437,45 +539,36 @@ export default function Plants() {
               })()}
             </div>
           </Card>
-        )}
+  )}
 
-        {/* Pane 4: Areas/Plants within selected structure */}
+        {/* Pane 4: Equipment within selected room */}
+        {/* Pane 4: Equipment within selected room */}
         {selectedTop && (
-      <Card>
-            <div className="w-full min-w-0">
-              <h2 className="text-base font-medium text-gray-900 mb-2">Plants</h2>
-              {(() => {
-                const loc = locations[selectedTop!];
-                const plantsList = !selectedSub ? [] : (loc?.sublocations?.[selectedSub!]?.plants || []);
-                return (selectedSub && plantsList.length > 0) ? (
-                  <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
-                    {plantsList.map((p) => (
-                      <li key={p.id}>
-                        <button
-                          className={`w-full text-left px-3 py-2 flex items-center gap-2 ${selectedPlant?.id === p.id ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
-                          onClick={() => setSelectedPlant(p)}
-                        >
-                          <Sprout className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
-              <span className="text-base text-gray-900 truncate min-w-0">{p.strain}</span>
-              <span className="ml-auto text-sm text-gray-500 shrink-0">{p.id.slice(0,6)}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-          <div className="text-base text-gray-500">{!selectedSub ? 'Choose an area.' : 'No plants here.'}</div>
-                );
-              })()}
-            </div>
-          </Card>
+          <div ref={equipmentRef} className="hidden lg:block">
+            <Card>
+              <div className="w-full min-w-0">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-base font-medium text-gray-900">Equipment</h2>
+                  <button
+                    className="p-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+                    aria-label="Add equipment"
+                    onClick={() => setEquipModalOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+                <div className="border border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-500">No equipment</div>
+              </div>
+            </Card>
+          </div>
         )}
 
   {/* Details panel (third visible column when a plant is selected; first column hides via earlier logic) */}
   {selectedPlant && (
-          <div className="w-full min-w-0">
-            <PlantDetailsView plant={selectedPlant} onBack={() => setSelectedPlant(null)} />
-          </div>
-        )}
+        <div className="w-full min-w-0">
+          <PlantDetailsView plant={selectedPlant} onBack={() => setSelectedPlant(null)} />
+        </div>
+      )}
       </div>
 
       {/* Geolocation Modal */}
@@ -506,12 +599,16 @@ export default function Plants() {
                 className="inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50"
                 disabled={!geoForm.name.trim()}
                 onClick={async ()=>{
-                  const created = await api.createGeo({ name: geoForm.name.trim(), address: geoForm.address.trim() });
-                  const gs = await api.getGeos();
-                  setGeoList(gs);
-                  setSelectedGeo(created.id);
-                  setGeoModalOpen(false);
-                  setGeoForm({ name: '', address: '' });
+                  try {
+                    const created = await api.createGeo({ name: geoForm.name.trim(), address: geoForm.address.trim() });
+                    const gs = await api.getGeos();
+                    setGeoList(gs);
+                    setSelectedGeo(created.id);
+                    setGeoModalOpen(false);
+                    setGeoForm({ name: '', address: '' });
+                  } catch (e) {
+                    showError(e);
+                  }
                 }}
               >
                 Confirm
@@ -549,12 +646,16 @@ export default function Plants() {
                 disabled={!selectedGeo || !facilityForm.name.trim()}
                 onClick={async ()=>{
                   if (!selectedGeo) return;
-                  const created = await api.createFacility({ geoId: selectedGeo, name: facilityForm.name.trim(), type: facilityForm.type });
-                  const fs = await api.getFacilities(selectedGeo);
-                  setFacilityList(fs);
-                  setSelectedFacility(created.id);
-                  setFacilityModalOpen(false);
-                  setFacilityForm({ name: '', type: 'farm' });
+                  try {
+                    const created = await api.createFacility({ geoId: selectedGeo, name: facilityForm.name.trim(), type: facilityForm.type });
+                    const fs = await api.getFacilities(selectedGeo);
+                    setFacilityList(fs);
+                    setSelectedFacility(created.id);
+                    setFacilityModalOpen(false);
+                    setFacilityForm({ name: '', type: 'farm' });
+                  } catch (e) {
+                    showError(e);
+                  }
                 }}
               >
                 Confirm
@@ -574,7 +675,8 @@ export default function Plants() {
             </div>
             <div className="space-y-3">
               {(() => {
-                const f = facilityList.find((x)=> x.name === selectedFacility);
+                // selectedFacility holds the facility id; match by id
+                const f = facilityList.find((x)=> x.id === selectedFacility);
                 const allowed: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
                 // Ensure form type always matches allowed
                 if (structureForm.type !== allowed) {
@@ -595,8 +697,21 @@ export default function Plants() {
               })()}
               <div>
                 <label className="block text-sm text-gray-700 mb-1">Name</label>
-                <input className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base" value={structureForm.name} onChange={(e)=> setStructureForm((v)=> ({ ...v, name: e.target.value }))} placeholder="e.g., Room 1 or Greenhouse 2"/>
+                {(() => {
+                  const f = facilityList.find((x)=> x.id === selectedFacility);
+                  const allowed: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
+                  const ph = allowed === 'room' ? 'e.g., Room 1' : 'e.g., Greenhouse 2';
+                  return (
+                    <input
+                      className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base"
+                      value={structureForm.name}
+                      onChange={(e)=> setStructureForm((v)=> ({ ...v, name: e.target.value }))}
+                      placeholder={ph}
+                    />
+                  );
+                })()}
               </div>
+              {/* Size first (always above Usage) */}
               <div>
                 <label className="block text-sm text-gray-700 mb-1">Size (m²)</label>
                 <input
@@ -609,22 +724,171 @@ export default function Plants() {
                   placeholder="e.g., 120"
                 />
               </div>
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Usage</label>
+                {(() => {
+                  const f = facilityList.find((x)=> x.id === selectedFacility);
+                  const allowed: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
+                    const options = allowed === 'greenhouse' ? ['Vegetative','Flowering'] : ['Vegetative','Flowering','Drying','Storage','Racks/Tents'];
+                  // Ensure selection remains valid when allowed changes
+                  if (structureForm.usage && !options.includes(structureForm.usage)) {
+                    setStructureForm((v)=> ({ ...v, usage: '' as any, tents: [], racks: [] }));
+                  }
+                  return (
+                    <select
+                      className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base"
+                      value={structureForm.usage}
+                      onChange={(e)=> {
+                        const next = e.target.value as any;
+                        setStructureForm((v)=> ({ ...v, usage: next, tents: next === 'Racks/Tents' ? (v.tents?.length ? v.tents : [{ widthFt: '', lengthFt: '' }] ) : [], racks: next === 'Racks/Tents' ? (v.racks?.length ? v.racks : [{ widthCm: '', lengthCm: '', shelves: '' }]) : [] }));
+                      }}
+                    >
+                      <option value="">Select…</option>
+                      {options.map(o => (
+                        <option key={o} value={o as any}>{o}</option>
+                      ))}
+                    </select>
+                  );
+                })()}
+                {/* helper text removed as requested */}
+              </div>
+              {/* Racks/Tents editor when usage is Racks/Tents and type is room */}
+              {(() => {
+                const f = facilityList.find((x)=> x.id === selectedFacility);
+                const allowed: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
+                if (allowed !== 'room' || structureForm.usage !== 'Racks/Tents') return null;
+                // Helper to compute total tent+rack area in m^2
+                const ft2m = (ft: number) => ft * 0.3048;
+                const tentAreaM2 = (w: number, l: number) => ft2m(w) * ft2m(l);
+                const totalTentM2 = (structureForm.tents || []).reduce((sum, t) => sum + (tentAreaM2(Number(t.widthFt||0), Number(t.lengthFt||0)) || 0), 0);
+                const cm2m = (cm: number) => cm / 100;
+                const rackAreaM2 = (wcm: number, lcm: number) => cm2m(wcm) * cm2m(lcm);
+                const totalRackM2 = (structureForm.racks || []).reduce((sum, r) => sum + (rackAreaM2(Number(r.widthCm||0), Number(r.lengthCm||0)) || 0), 0);
+                const roomM2 = Number(structureForm.size || '0') || 0;
+                const over = (totalTentM2 + totalRackM2) > roomM2 + 1e-6;
+                return (
+                  <div className="rounded-md border border-gray-200 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm text-gray-700">Racks/Tents for this room</label>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-primary/40 text-primary text-xs hover:bg-primary/5"
+                        onClick={() => setStructureForm(v => ({ ...v, tents: [...(v.tents || []), { widthFt: '', lengthFt: '' }] }))}
+                      >
+                        Add tent (ft × ft)
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {(structureForm.tents || []).map((t, ti) => (
+                        <div key={ti} className="flex items-center gap-2">
+                          <span className="text-xs text-gray-600">Tent {ti+1}</span>
+                          <input
+                            className="w-20 border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                            placeholder="Width ft"
+                            inputMode="numeric"
+                            value={t.widthFt}
+                            onChange={(e)=> setStructureForm(v => ({ ...v, tents: v.tents.map((x,i)=> i===ti ? { ...x, widthFt: e.target.value } : x) }))}
+                          />
+                          <span className="text-gray-500">×</span>
+                          <input
+                            className="w-20 border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                            placeholder="Length ft"
+                            inputMode="numeric"
+                            value={t.lengthFt}
+                            onChange={(e)=> setStructureForm(v => ({ ...v, tents: v.tents.map((x,i)=> i===ti ? { ...x, lengthFt: e.target.value } : x) }))}
+                          />
+                          <button
+                            type="button"
+                            className="ml-auto text-xs text-red-600 hover:underline"
+                            onClick={() => setStructureForm(v => ({ ...v, tents: v.tents.filter((_,i)=> i!==ti) }))}
+                          >Remove</button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between mt-3 mb-2">
+                      <label className="block text-sm text-gray-700">Add rack (cm × cm + shelves)</label>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-primary/40 text-primary text-xs hover:bg-primary/5"
+                        onClick={() => setStructureForm(v => ({ ...v, racks: [...(v.racks || []), { widthCm: '', lengthCm: '', shelves: '' }] }))}
+                      >
+                        Add rack
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {(structureForm.racks || []).map((r, ri) => (
+                        <div key={ri} className="flex items-center gap-2">
+                          <span className="text-xs text-gray-600">Rack {ri+1}</span>
+                          <input
+                            className="w-24 border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                            placeholder="Width cm"
+                            inputMode="numeric"
+                            value={r.widthCm}
+                            onChange={(e)=> setStructureForm(v => ({ ...v, racks: v.racks.map((x,i)=> i===ri ? { ...x, widthCm: e.target.value } : x) }))}
+                          />
+                          <span className="text-gray-500">×</span>
+                          <input
+                            className="w-24 border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                            placeholder="Length cm"
+                            inputMode="numeric"
+                            value={r.lengthCm}
+                            onChange={(e)=> setStructureForm(v => ({ ...v, racks: v.racks.map((x,i)=> i===ri ? { ...x, lengthCm: e.target.value } : x) }))}
+                          />
+                          <span className="text-gray-500">·</span>
+                          <input
+                            className="w-24 border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                            placeholder="# Shelves"
+                            inputMode="numeric"
+                            value={r.shelves}
+                            onChange={(e)=> setStructureForm(v => ({ ...v, racks: v.racks.map((x,i)=> i===ri ? { ...x, shelves: e.target.value } : x) }))}
+                          />
+                          <button
+                            type="button"
+                            className="ml-auto text-xs text-red-600 hover:underline"
+                            onClick={() => setStructureForm(v => ({ ...v, racks: v.racks.filter((_,i)=> i!==ri) }))}
+                          >Remove</button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className={`mt-2 text-xs ${over ? 'text-red-600' : 'text-gray-600'}`}>
+                      Total area (tents+racks): {(totalTentM2 + totalRackM2).toFixed(2)} m² {roomM2 ? `(room: ${roomM2.toFixed(2)} m²)` : ''}
+                      {over && <span className="ml-2">Exceeds room size</span>}
+                    </div>
+                  </div>
+                );
+              })()}
+              
             </div>
             <div className="mt-4 flex items-center justify-end gap-2">
               <button className="px-3 py-1.5 text-sm text-gray-700" onClick={()=> setStructureModalOpen(false)}>Cancel</button>
               <button
                 className="inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50"
-                disabled={!structureForm.name.trim() || structureForm.size.trim() === ''}
+                disabled={!structureForm.name.trim() || structureForm.size.trim() === '' || !structureForm.usage || (structureForm.usage === 'Racks/Tents' && (()=>{
+                  const ft2m = (ft:number)=> ft*0.3048; const areaT = (w:number,l:number)=> ft2m(w)*ft2m(l);
+                  const totalT = (structureForm.tents||[]).reduce((s,t)=> s + areaT(Number(t.widthFt||0), Number(t.lengthFt||0)), 0);
+                  const cm2m = (cm:number)=> cm/100; const areaR = (w:number,l:number)=> cm2m(w)*cm2m(l);
+                  const totalR = (structureForm.racks||[]).reduce((s,r)=> s + areaR(Number(r.widthCm||0), Number(r.lengthCm||0)), 0);
+                  const room = Number(structureForm.size||'0')||0; return totalT + totalR > room + 1e-6;
+                })())}
                 onClick={async ()=>{
                   if (!selectedFacility) return;
-                  const name = structureForm.name.trim();
-                  const type = structureForm.type;
-                  const sizeNum = Number(structureForm.size);
-                  await api.createStructure({ facilityId: selectedFacility, name, type, size: isNaN(sizeNum) ? 0 : sizeNum });
-                  const list = await api.getStructures(selectedFacility);
-                  setStructureList(list.map((s: any) => ({ id: s.id, facility: s.facility?.id, name: s.name, type: s.type, size: s.size })));
-                  setStructureModalOpen(false);
-                  setStructureForm({ name: '', type: 'room', size: '' });
+                  try {
+                    const name = structureForm.name.trim();
+                    // Enforce allowed type based on facility kind
+                    const f = facilityList.find((x)=> x.id === selectedFacility);
+                    const allowedType: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
+                    const type = allowedType;
+                    const sizeNum = Number(structureForm.size);
+                    const tents = structureForm.usage === 'Racks/Tents' ? (structureForm.tents||[]).map(t => ({ widthFt: Number(t.widthFt||0), lengthFt: Number(t.lengthFt||0) })) : undefined;
+                    const racks = structureForm.usage === 'Racks/Tents' ? (structureForm.racks||[]).map(r => ({ widthCm: Number(r.widthCm||0), lengthCm: Number(r.lengthCm||0), shelves: Number(r.shelves||0) })) : undefined;
+                    await api.createStructure({ facilityId: selectedFacility, name, type, size: isNaN(sizeNum) ? 0 : sizeNum, usage: structureForm.usage as any, tents, racks });
+                    const list = await api.getStructures(selectedFacility);
+                    setStructureList(list.map((s: any) => ({ id: s.id, facility: s.facility?.id, name: s.name, type: s.type, size: s.size, usage: s.usage, tents: s.tents, racks: s.racks })));
+                    setStructureModalOpen(false);
+                    setStructureForm({ name: '', type: 'room', size: '', usage: '' as any, tents: [], racks: [] });
+                  } catch (e) {
+                    showError(e);
+                  }
                 }}
               >
                 Confirm
