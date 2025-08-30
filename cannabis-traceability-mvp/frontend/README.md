@@ -1,22 +1,42 @@
-# Frontend
+# 🎨 Frontend Setup
 
-## Google Maps setup
+This directory contains the React frontend for the Cannabis Traceability MVP.
 
-The Add Location wizard uses Google Maps (Places + Map) for address verification and map picking.
+## 🗺️ Google Maps Integration
 
-1) Create `.env` in this folder (see `.env.example`) and set:
+The Add Location wizard uses Google Maps for address verification and map picking.
 
-```
-VITE_GOOGLE_MAPS_API_KEY=YOUR_KEY
-```
+### Setup Steps
 
-2) Enable these APIs for your key:
-- Maps JavaScript API
-- Places API
-- Geocoding API
+1. **Create Environment File**
+   ```bash
+   cp .env.example .env
+   ```
 
-3) Add HTTP referrer restrictions on the key to include:
-- http://localhost:5173/*
-- http://127.0.0.1:5173/*
+2. **Configure API Key**
+   Edit `.env` and add your Google Maps API key:
+   ```env
+   VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
+   ```
 
-If you see "This page can't load Google Maps correctly", the key is missing, invalid, or blocked by referrer restrictions. Update your key restrictions and restart the frontend.
+3. **Enable Required APIs**
+   In Google Cloud Console, enable:
+   - ✅ Maps JavaScript API
+   - ✅ Places API
+   - ✅ Geocoding API
+
+4. **Set Referrer Restrictions**
+   Add these to your API key restrictions:
+   - `http://localhost:5173/*`
+   - `http://127.0.0.1:5173/*`
+
+### Troubleshooting
+
+If you see **"This page can't load Google Maps correctly"**:
+- 🔍 Check that your API key is valid
+- 🔒 Verify referrer restrictions allow localhost
+- 🔄 Restart the frontend development server
+- 📝 Check browser console for detailed error messages
+
+### Alternative
+Without a valid API key, the location features will be disabled, but the rest of the application will function normally.

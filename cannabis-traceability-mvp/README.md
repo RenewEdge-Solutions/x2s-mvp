@@ -1,65 +1,75 @@
-# Cannabis Traceability MVP
+# 🌿 Cannabis Traceability MVP
+
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Enabled-blue.svg)](https://www.typescriptlang.org/)
 
 A local, containerized MVP web app demonstrating cannabis seed-to-sale traceability concepts with a simple Apple-style UI.
 
-- Backend: NestJS (TypeScript) + TypeORM + PostgreSQL (dev sync enabled)
-- Frontend: React (TypeScript) + Vite + Tailwind CSS
-- Auth: Mock login + mock 2FA; roles: Regulator, Operator, Auditor
+## 🛠️ Tech Stack
 
-## Quick Start
+- **Backend**: NestJS (TypeScript) + TypeORM + PostgreSQL
+- **Frontend**: React (TypeScript) + Vite + Tailwind CSS
+- **Auth**: Mock login + mock 2FA
+- **Roles**: Regulator, Operator, Auditor
 
-1) Copy environment file
+## 🚀 Quick Start
 
-```
+### 1. Setup Environment
+```bash
 cp backend/.env.example backend/.env
 ```
 
-2) Build and run
-
-```
+### 2. Build and Run
+```bash
 docker compose up --build
 ```
 
-- App: http://localhost:3000
-- API: http://localhost:3001
+### 3. Access the Application
+- **App**: [http://localhost:3000](http://localhost:3000)
+- **API**: [http://localhost:3001](http://localhost:3001)
 
-### Credentials
+## 📊 Demo Credentials
 
-- regulator1 / pass123
-- operator1 / pass123
-- auditor1 / pass123
-- 2FA: any 6 digits (mock)
+| Role | Username | Password | 2FA Code |
+|------|----------|----------|----------|
+| Regulator | regulator1 | pass123 | Any 6 digits |
+| Operator | operator1 | pass123 | Any 6 digits |
+| Auditor | auditor1 | pass123 | Any 6 digits |
 
-## Features
+## ✨ Features
 
-- Role dashboards (mock KPIs/alerts)
-- Operator wizard: Plant seed, then Harvest crop
-- Lifecycle Explorer: merged timeline of plant + harvest events
-- Blockchain Integrity: server SHA-256 hashes for events; verify locally in browser
-- Facilities View: browse and manage geolocations, facilities, structures, and equipment (with add equipment modal)
+- **Role Dashboards**: Mock KPIs and alerts based on user role
+- **Operator Wizard**: Plant seed → Harvest crop workflow
+- **Lifecycle Explorer**: Merged timeline of plant + harvest events
+- **Blockchain Integrity**: Server SHA-256 hashes with local verification
+- **Facilities Management**: Browse and manage locations, structures, and equipment
 
-## Notes
+## 📋 Example Flow
 
-- TypeORM synchronize=true for dev only.
-- Data is minimal; fixture users and simple entities exist to prove DB connectivity.
-- No real JWT; mock token is used purely for demo.
+1. 🔐 Login as `operator1` / `pass123` (2FA: any 6 digits)
+2. 🧙‍♂️ Open Wizard
+3. 🌱 Plant seed (select strain + location) → View computed hash
+4. 🌾 Harvest from created plant → View updated hash
+5. 📊 Explore Lifecycle and Blockchain Integrity views
 
-## Tech
+## ⚙️ Configuration
 
-- Ports: frontend 3000, backend 3001, postgres 5432
-- TypeScript everywhere
-- Tailwind for styling; minimal, accessible, responsive UI
+### Ports
+- **Frontend**: 3000
+- **Backend**: 3001
+- **PostgreSQL**: 5432
 
-## Example Flow
+### Development Notes
+- TypeORM `synchronize=true` for development only
+- Minimal data fixtures for DB connectivity demonstration
+- Mock authentication (no persistent sessions)
 
-1. Login as operator1 / pass123 (2FA: any 6 digits)
-2. Open Wizard
-3. Plant seed (strain + location) → see server-computed hash
-4. Harvest from the created plant → see server-computed hash
-5. Explore Lifecycle and Blockchain Integrity views
+## 🚨 Limitations
 
-## Limitations
+- Mock authentication without real session persistence
+- Minimal validation and error handling
+- Demonstration purposes only - not production ready
 
-- Mock authentication without persistent sessions.
-- Minimal validation and error handling.
-- Not production hardened; for demonstration only.
+---
+
+**Part of the RenewEdge Solutions Cannabis Traceability Suite**

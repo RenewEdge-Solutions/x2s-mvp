@@ -1,48 +1,106 @@
-# Cannabis Traceability MVP
+# 🌿 Cannabis Traceability MVP
 
-A full‑stack MVP for cannabis traceability with role‑based dashboards, calendar, inventory, integrity (hashing), and demo data. Runs locally with Docker or directly.
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 
-## Stack
-- Backend: NestJS 10 + TypeORM (PostgreSQL), Swagger docs, seed script
-- Frontend: React 18 + Vite + TypeScript + Tailwind CSS, React Router
-- DB: PostgreSQL 14
-- Container: Docker Compose (optional)
+A full-stack MVP for cannabis traceability with role-based dashboards, calendar, inventory, integrity (hashing), and demo data. Runs locally with Docker or directly.
 
-## Features
-- Auth (mock) with 2FA prompt, user profiles, roles
-  - Roles: Operator, Grower, Shop, Lab, Regulator, Auditor
-- Modules: Cannabis (UI complete); Alcohol/Mushrooms/Explosives (stubs)
-- Dashboards
-  - KPIs: Active plants, Vegetative, Flower, Drying (count), Harvested (plants), Storage (g), Sold (g, per‑period), Revenue (per‑period)
-    - Period options: Last 24 hours, Last 7 days, Last month, Last 3 months, Last 6 months, Year‑to‑date, Last year, Year before last (data clamped to 2025+)
-  - Shortcuts: grouped by urgency — Urgent (red) and Soon (yellow); per‑location actions like “Harvest Greenhouse 3”, “Flip plants in Indoor Room 2”
-    - Exactly 3 items visible per column; scroll for more. No counts/parentheses in labels.
-  - Recent activity: 3 feeds (Plant, Drying & Storage, Harvest & Revenue) with exactly 3 rows visible; scroll for more
-  - Upcoming: vertical list (one day per row), ~3 days visible; scroll for more
-    - “Open calendar” appears inline as the last row once you scroll to the end
-- Calendar (month grid): plant/harvest/drying/check events with hover details
-- Inventory: plants in production, harvest lots, supplies, packaging
-- Integrity: blockchain‑style hashing view (visible to Regulator/Auditor)
-- Event History: lifecycle explorer (renamed from Lifecycle)
+## 📋 Table of Contents
 
-## Repo layout
+- [🚀 Quick Start](#-quick-start)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [✨ Features](#-features)
+- [📁 Project Structure](#-project-structure)
+- [🔧 Backend Setup](#-backend-setup)
+- [🎨 Frontend Setup](#-frontend-setup)
+- [🐳 Docker Setup](#-docker-setup)
+- [📊 Demo Accounts](#-demo-accounts)
+- [📝 Notes](#-notes)
+- [🔍 Troubleshooting](#-troubleshooting)
+- [🗺️ Roadmap](#️-roadmap)
+- [📚 Documentation](#-documentation)
+
+## 🚀 Quick Start
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/RenewEdge-Solutions/x2s-mvp.git
+   cd x2s-mvp
+   ```
+
+2. **Run with Docker (Recommended)**
+   ```bash
+   cd cannabis-traceability-mvp
+   docker compose up --build
+   ```
+   - App: [http://localhost:3000](http://localhost:3000)
+   - API: [http://localhost:3001](http://localhost:3001)
+
+3. **Or run locally**
+   - Follow [Backend Setup](#-backend-setup) and [Frontend Setup](#-frontend-setup)
+
+## 🛠️ Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| **Backend** | NestJS 10 + TypeORM + PostgreSQL |
+| **Frontend** | React 18 + Vite + TypeScript + Tailwind CSS |
+| **Database** | PostgreSQL 14 |
+| **Container** | Docker Compose |
+| **Documentation** | Swagger |
+
+## ✨ Features
+
+### 🔐 Authentication & Roles
+- Mock authentication with 2FA prompt
+- User profiles and role-based access
+- **Roles**: Operator, Grower, Shop, Lab, Regulator, Auditor
+
+### 📊 Dashboards
+- **KPIs**: Active plants, Vegetative, Flower, Drying, Harvested, Storage, Sold, Revenue
+- **Shortcuts**: Urgent (🔴) and Soon (🟡) actions per location
+- **Recent Activity**: Plant, Drying & Storage, Harvest & Revenue feeds
+- **Upcoming Events**: Vertical calendar view
+
+### 📅 Calendar
+- Month grid view with plant/harvest/drying/check events
+- Hover details for event information
+
+### 📦 Inventory Management
+- Plants in production tracking
+- Harvest lots management
+- Supplies and packaging inventory
+
+### 🔒 Integrity Verification
+- Blockchain-style hashing view
+- Visible only to Regulator/Auditor roles
+
+### 📈 Event History
+- Lifecycle explorer for plant and harvest events
+
+## 📁 Project Structure
+
 ```
-/ (this README)
-├─ cannabis-traceability-mvp/
-│  ├─ backend/        # NestJS API + TypeORM + Swagger + seed
-│  └─ frontend/       # React + Vite + Tailwind UI
-└─ docs/              # Architecture and proposal docs
+x2s-mvp/
+├── cannabis-traceability-mvp/
+│   ├── backend/          # NestJS API server
+│   ├── frontend/         # React application
+│   └── docker-compose.yml
+├── docs/                 # Architecture & proposal docs
+└── README.md
 ```
 
-## Backend
-- Port: 3001 (configurable via PORT)
-- Swagger: http://localhost:3001/docs
-- Entities: Plant, Harvest, User
-- Notable endpoints: /plants, /harvests, /lifecycle, /integrity, /auth
+## 🔧 Backend Setup
 
-### Config
-Backend reads env from `.env.local` (first) and `.env`:
-```
+### Prerequisites
+- Node.js 18+
+- PostgreSQL 14
+
+### Configuration
+Create `.env` file in `backend/` directory:
+
+```env
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5433
 POSTGRES_USER=trace_user
@@ -51,66 +109,120 @@ POSTGRES_DB=traceability
 PORT=3001
 ```
 
-### Dev run (local)
-```
+### Running Locally
+
+```bash
 cd cannabis-traceability-mvp/backend
 npm install
 npm run build
 npm run start:dev
 ```
 
-### Seed demo data
-Creates ~250 plants across 20 greenhouses + 5 indoor rooms, drying/dried harvests, and leaves some plants harvest‑pending.
-```
+### API Documentation
+- Swagger UI: [http://localhost:3001/docs](http://localhost:3001/docs)
+- Key endpoints: `/plants`, `/harvests`, `/lifecycle`, `/integrity`, `/auth`
+
+### Seeding Demo Data
+
+```bash
 cd cannabis-traceability-mvp/backend
 npm run seed
 ```
 
-## Frontend
-- Port: 5173 (default Vite); configured in docker compose to 5173
+Creates ~250 plants across 20 greenhouses + 5 indoor rooms with demo data.
 
-### Dev run (local)
-```
+## 🎨 Frontend Setup
+
+### Prerequisites
+- Node.js 18+
+
+### Running Locally
+
+```bash
 cd cannabis-traceability-mvp/frontend
 npm install
 npm run dev
 ```
-Open the URL Vite prints (commonly http://localhost:3000 or http://localhost:5173)
 
-### Accounts
-- Operator: Daniel.Veselski / pass123
-- Grower: grower1 / pass123
-- Shop: shop1 / pass123
-- Lab: lab1 / pass123
-- Regulator: regulator1 / pass123
-- Auditor: auditor1 / pass123
+Open the URL displayed (usually [http://localhost:5173](http://localhost:5173))
 
-## Docker (optional)
-A compose stack runs db, backend, and frontend. Ensure DB port mapping (host 5433 -> container 5432). If compose isn’t present, run services individually as above.
+### Google Maps Integration
+For location features, set up Google Maps API:
 
-## Notes
-- Integrity view is hidden/blocked for Operator/Grower/Shop/Lab; visible for Regulator/Auditor.
-- Calendar and KPIs use simple heuristics for veg/flower thresholds and revenue estimates; configurable later.
-- Alcohol/Mushrooms/Explosives modules are placeholders.
- - Top nav shows: Dashboard, Plants, Inventory, Calendar, then notifications and user menu.
+1. Create `.env` in `frontend/`:
+   ```env
+   VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
+   ```
 
-## Scripts
-- Backend
-  - build: compile TypeScript
-  - start: run Nest
-  - start:dev: watch mode
-  - seed: populate demo data
-- Frontend
-  - dev: start Vite dev server
-  - build: typecheck + build
-  - preview: preview build
+2. Enable APIs: Maps JavaScript API, Places API, Geocoding API
 
-## Troubleshooting
-- Seeding can fail if DB isn’t reachable. Use `.env.local` to set `POSTGRES_HOST=localhost` and `POSTGRES_PORT=5433` (host mapping).
-- If ports are busy, adjust frontend (5173), backend (3001), and DB (5433) in your environment.
+3. Add referrer restrictions for localhost
 
-## Roadmap
-- POS flows (Shop) and Lab result entry + COA hashing
-- Backend role guards beyond Integrity
-- Rich notifications; ICS export; week/day calendar views
-- Transfers/manifests and regulator audit tools
+## 🐳 Docker Setup
+
+```bash
+cd cannabis-traceability-mvp
+docker compose up --build
+```
+
+Services:
+- **Frontend**: Port 3000
+- **Backend**: Port 3001
+- **Database**: Port 5432 (mapped to host 5433)
+
+## 📊 Demo Accounts
+
+| Role | Username | Password |
+|------|----------|----------|
+| Operator | Daniel.Veselski | pass123 |
+| Grower | grower1 | pass123 |
+| Shop | shop1 | pass123 |
+| Lab | lab1 | pass123 |
+| Regulator | regulator1 | pass123 |
+| Auditor | auditor1 | pass123 |
+
+## 📝 Notes
+
+- Integrity view is restricted to Regulator/Auditor roles
+- Calendar and KPIs use configurable heuristics
+- Alcohol/Mushrooms/Explosives modules are placeholders
+- Navigation: Dashboard, Plants, Inventory, Calendar
+
+## 🔍 Troubleshooting
+
+### Database Connection Issues
+- Ensure PostgreSQL is running on port 5433
+- Check `.env` configuration
+- For Docker: verify port mapping
+
+### Port Conflicts
+- Frontend: 5173 (Vite default)
+- Backend: 3001
+- Database: 5433 (host) / 5432 (container)
+
+### Google Maps Errors
+- Verify API key is valid and unrestricted for localhost
+- Check browser console for specific errors
+
+## 🗺️ Roadmap
+
+- [ ] POS flows for Shop role
+- [ ] Lab result entry and COA hashing
+- [ ] Enhanced role guards
+- [ ] Rich notifications system
+- [ ] ICS calendar export
+- [ ] Week/Day calendar views
+- [ ] Transfer/manifest management
+- [ ] Regulator audit tools
+
+## 📚 Documentation
+
+- [High Level Architecture](docs/High%20Level%20Architecture%20Text.docx)
+- [Domain Architecture](docs/Domain%20Architecture%20Cannabis%20Text.docx)
+- [Security & Audit Architecture](docs/Security%20and%20Audit%20Architecture.docx)
+- [Offline Sync Architecture](docs/Offline%20Sync%20Architecture.docx)
+- [Tech Stack](docs/Tech%20Stack.docx)
+
+---
+
+**Built with ❤️ by RenewEdge Solutions**
