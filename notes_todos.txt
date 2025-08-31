@@ -1,10 +1,9 @@
 Operator.Farmer:
-Greenhouse should have the option how many beds it have
-Notifications for empty beds and racks and rooms and greenhouses and highlight elements what represents these so the user directly see them
+
 make dashboard data mocks clickable and useable (only mocks)
 Fill production with mock data
 fill inventory wih mock data
-add funtion to add items to inventory
+
 fill calender with mock data
 add function to add calender events
 add mock function to activate email Notifications

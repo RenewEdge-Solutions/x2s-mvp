@@ -209,6 +209,22 @@ export default function Sites() {
     })();
   }, [selectedFacility]);
 
+  // Load occupancy data when module changes
+  useEffect(() => {
+    if (activeModule !== 'cannabis') {
+      setOccupancyData([]);
+      return;
+    }
+    (async () => {
+      try {
+        const data = await api.getAllOccupancy();
+        setOccupancyData(data);
+      } catch {
+        setOccupancyData([]);
+      }
+    })();
+  }, [activeModule, selectedFacility, plants]); // Refresh when plants change
+
   
 
   const locations = useMemo(() => buildLocations(plants.filter((p) => !p.harvested)), [plants]);
@@ -361,6 +377,9 @@ export default function Sites() {
     name: string;
     impact: string;
   }>({ type: null, id: null, name: '', impact: '' });
+  
+  // Occupancy data
+  const [occupancyData, setOccupancyData] = useState<any[]>([]);
   
   // Structures available for the currently selected facility
   const topsForFacility = useMemo(() => {
@@ -623,6 +642,28 @@ export default function Sites() {
               </div>
               {(() => {
                 const tops = topsForFacility;
+                
+                // Helper function to get occupancy info for a structure
+                const getOccupancyInfo = (structureKey: string) => {
+                  if (!selectedFacility) return null;
+                  
+                  // Find the structure in the occupancy data
+                  const facilityOccupancy = occupancyData.find(f => f.facilityId === selectedFacility);
+                  if (!facilityOccupancy) return null;
+                  
+                  // Find the matching structure by matching the structure key format
+                  const structure = facilityOccupancy.structures.find((s: any) => {
+                    const structureLocationKey = s.structureType === 'room' 
+                      ? `Indoor ${s.structureName.replace(/^Indoor\s+/i, '')} - ${s.facilityName}`
+                      : s.structureName.match(/^Greenhouse\s+/i) 
+                        ? `${s.structureName} - ${s.facilityName}`
+                        : `Greenhouse ${s.structureName.replace(/^Greenhouse\s+/i, '')} - ${s.facilityName}`;
+                    return structureLocationKey === structureKey;
+                  });
+                  
+                  return structure;
+                };
+                
                 return tops.length > 0 ? (
                   <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
                     {tops.map((loc) => {
@@ -638,6 +679,10 @@ export default function Sites() {
                       const racks = countBy('rack');
                       const beds = countBy('bed');
                       const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+                      
+                      // Get occupancy info for this structure
+                      const occupancyInfo = getOccupancyInfo(loc.key);
+                      
                       const summary = (() => {
                         if (loc.type === 'room') {
                           const parts: string[] = [];
@@ -654,9 +699,20 @@ export default function Sites() {
                         }
                         return `${subs.length} areas . ${plural(equipmentCount, 'equipment')}`;
                       })();
+                      
+                      // Determine background color based on occupancy
+                      const getBgColor = () => {
+                        if (active) return 'bg-primary/5';
+                        if (!occupancyInfo) return 'hover:bg-gray-50';
+                        if (occupancyInfo.isEmpty) return 'hover:bg-amber-50 border-l-4 border-amber-300';
+                        if (occupancyInfo.isOverCapacity) return 'hover:bg-red-50 border-l-4 border-red-300';
+                        if (occupancyInfo.occupancyRate < 0.3) return 'hover:bg-yellow-50 border-l-4 border-yellow-300';
+                        return 'hover:bg-green-50 border-l-4 border-green-300';
+                      };
+                      
                       return (
                         <li key={loc.key}>
-                          <div className={`w-full px-3 py-2 flex items-center justify-between ${active ? 'bg-primary/5' : 'hover:bg-gray-50'}`}>
+                          <div className={`w-full px-3 py-2 flex items-center justify-between ${getBgColor()}`}>
                             <button
                               className="flex-1 text-left flex items-center justify-between"
                               onClick={() => {
@@ -680,7 +736,40 @@ export default function Sites() {
                             >
                               <div className="min-w-0">
                                 <div className="text-base text-gray-900 truncate">{leftNameFromTop(loc.key, loc.type)}</div>
-                                <div className="text-sm text-gray-500">{summary}</div>
+                                <div className="text-sm text-gray-500">
+                                  {summary}
+                                  {occupancyInfo && (
+                                    <div className="mt-1 flex items-center gap-2">
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                        occupancyInfo.isEmpty 
+                                          ? 'bg-amber-100 text-amber-800' 
+                                          : occupancyInfo.isOverCapacity
+                                          ? 'bg-red-100 text-red-800'
+                                          : occupancyInfo.occupancyRate < 0.3
+                                          ? 'bg-yellow-100 text-yellow-800'
+                                          : 'bg-green-100 text-green-800'
+                                      }`}>
+                                        {occupancyInfo.isEmpty 
+                                          ? 'Empty' 
+                                          : occupancyInfo.isOverCapacity
+                                          ? 'Over capacity'
+                                          : `${Math.round(occupancyInfo.occupancyRate * 100)}% used`
+                                        }
+                                      </span>
+                                      <span className="text-xs text-gray-400">
+                                        {occupancyInfo.structureType === 'greenhouse' && occupancyInfo.totalBeds && (
+                                          `${occupancyInfo.totalBeds} beds`
+                                        )}
+                                        {occupancyInfo.structureType === 'room' && (
+                                          <>
+                                            {occupancyInfo.totalTents && `${occupancyInfo.totalTents} tents`}
+                                            {occupancyInfo.totalRackShelves && ` • ${occupancyInfo.totalRackShelves} shelves`}
+                                          </>
+                                        )}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                               <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" aria-hidden />
                             </button>
@@ -793,65 +882,105 @@ export default function Sites() {
                   );
                   
                   return structureEquipment.length > 0 ? (
-                    <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
+                    <div className="space-y-3">
                       {structureEquipment.map((equipment) => (
-                        <li key={equipment.id} className="px-3 py-2">
-                          <div className="flex items-center justify-between">
-                            <div className="min-w-0">
-                              <div className="text-base text-gray-900 truncate">
-                                {equipment.details.Name || `${equipment.type} ${equipment.subtype}`}
+                        <div key={equipment.id} className="bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
+                          <div className="flex items-start justify-between">
+                            <div className="min-w-0 flex-1">
+                              {/* Equipment Header */}
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                                  <Settings className="h-5 w-5 text-white" />
+                                </div>
+                                <div className="min-w-0">
+                                  <h3 className="text-base font-medium text-gray-900 truncate">
+                                    {equipment.details.Name || `${equipment.type} ${equipment.subtype}`}
+                                  </h3>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                      {equipment.type}
+                                    </span>
+                                    <span className="text-gray-500">•</span>
+                                    <span className="text-gray-600">{equipment.subtype}</span>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="text-sm text-gray-500">
-                                {equipment.type} → {equipment.subtype}
-                                {equipment.details.Power && ` → ${equipment.details.Power}W`}
-                                {equipment.details.Specification && ` → ${equipment.details.Specification}`}
+                              
+                              {/* Equipment Details */}
+                              <div className="grid grid-cols-1 gap-1 text-sm">
+                                {equipment.details.Power && (
+                                  <div className="flex items-center gap-2 text-gray-600">
+                                    <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
+                                    <span className="font-medium">Power:</span>
+                                    <span>{equipment.details.Power}W</span>
+                                  </div>
+                                )}
+                                {equipment.details.Specification && (
+                                  <div className="flex items-center gap-2 text-gray-600">
+                                    <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                                    <span className="font-medium">Spec:</span>
+                                    <span>{equipment.details.Specification}</span>
+                                  </div>
+                                )}
+                                {equipment.iotDevice && (
+                                  <div className="flex items-center gap-2 text-gray-600">
+                                    <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                                    <span className="font-medium">IoT:</span>
+                                    <span>{equipment.iotDevice}</span>
+                                  </div>
+                                )}
                               </div>
-                              <div className="text-xs text-gray-400">
-                                {equipment.location.split(' → ').slice(1).join(' → ')}
-                                {equipment.iotDevice && ` • IoT: ${equipment.iotDevice}`}
+                              
+                              {/* Location Path */}
+                              <div className="mt-2 text-xs text-gray-500">
+                                📍 {equipment.location.split(' → ').slice(1).join(' / ')}
                               </div>
                             </div>
-                            <button
-                              className="ml-2 p-1 rounded-md text-gray-500 hover:text-primary hover:bg-primary/10"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingEquipment(equipment.id);
-                                setEquipForm({
-                                  category: equipment.type,
-                                  type: equipment.subtype,
-                                  power: equipment.details.Power || '',
-                                  specification: equipment.details.Specification || '',
-                                  name: equipment.details.Name || '',
-                                  location: equipment.location.split(' → ').slice(1).join(' → '),
-                                  description: equipment.details.Description || '',
-                                  iotDevice: equipment.iotDevice || ''
-                                });
-                                setEquipModalOpen(true);
-                              }}
-                              title="Edit equipment"
-                            >
-                              <Settings className="h-4 w-4" />
-                            </button>
-                            <button
-                              className="ml-1 p-1 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const equipmentName = equipment.details.Name || `${equipment.type} ${equipment.subtype}`;
-                                setDeleteConfirm({ 
-                                  type: 'equipment', 
-                                  id: equipment.id, 
-                                  name: equipmentName, 
-                                  impact: 'This equipment will be permanently deleted.' 
-                                });
-                              }}
-                              title="Delete equipment"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            
+                            {/* Action Buttons */}
+                            <div className="flex gap-1 ml-3">
+                              <button
+                                className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingEquipment(equipment.id);
+                                  setEquipForm({
+                                    category: equipment.type,
+                                    type: equipment.subtype,
+                                    power: equipment.details.Power || '',
+                                    specification: equipment.details.Specification || '',
+                                    name: equipment.details.Name || '',
+                                    location: equipment.location.split(' → ').slice(1).join(' → '),
+                                    description: equipment.details.Description || '',
+                                    iotDevice: equipment.iotDevice || ''
+                                  });
+                                  setEquipModalOpen(true);
+                                }}
+                                title="Edit equipment"
+                              >
+                                <Settings className="h-4 w-4" />
+                              </button>
+                              <button
+                                className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const equipmentName = equipment.details.Name || `${equipment.type} ${equipment.subtype}`;
+                                  setDeleteConfirm({ 
+                                    type: 'equipment', 
+                                    id: equipment.id, 
+                                    name: equipmentName, 
+                                    impact: 'This equipment will be permanently deleted.' 
+                                  });
+                                }}
+                                title="Delete equipment"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           </div>
-                        </li>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   ) : (
                     <div className="border border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-500">No equipment</div>
                   );

@@ -16,19 +16,35 @@ export default function Dashboard() {
   const { activeModule } = useModule();
   const [plants, setPlants] = useState<any[]>([]);
   const [harvests, setHarvests] = useState<any[]>([]);
+  const [customEvents, setCustomEvents] = useState<any[]>([]);
+  const [occupancyData, setOccupancyData] = useState<any[]>([]);
   type PeriodKey = '24h' | '7d' | '1m' | '3m' | '6m' | 'ytd' | 'ly' | 'yby';
   const [soldPeriod, setSoldPeriod] = useState<PeriodKey>('1m');
   const [revenuePeriod, setRevenuePeriod] = useState<PeriodKey>('1m');
 
   useEffect(() => {
     if (activeModule === 'cannabis') {
-      api.getPlants().then(setPlants);
-      api.getHarvests().then(setHarvests);
+      api.getPlants().then(setPlants).catch(() => setPlants([]));
+      api.getHarvests().then(setHarvests).catch(() => setHarvests([]));
+      api.getAllOccupancy().then(setOccupancyData).catch(() => setOccupancyData([]));
+      loadEvents();
     } else {
       setPlants([]);
       setHarvests([]);
+      setOccupancyData([]);
+      setCustomEvents([]);
     }
   }, [activeModule]);
+
+  const loadEvents = async () => {
+    try {
+      const events = await api.getEvents();
+      setCustomEvents(Array.isArray(events) ? events : []);
+    } catch (error) {
+      console.error('Failed to load events:', error);
+      setCustomEvents([]);
+    }
+  };
 
   const ageInDays = (d: string | Date) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
 
@@ -93,6 +109,13 @@ export default function Dashboard() {
     const estRevenue = harvestsInRevenuePeriod
       .reduce((sum, h) => sum + (Number(h.yieldGrams) || 0) * pricePerGram, 0);
     const harvestedPlantsCount = harvests.length;
+    
+    // Calculate capacity metrics
+    const totalCapacity = occupancyData.reduce((sum, facility) => sum + facility.totalCapacity, 0);
+    const totalOccupied = occupancyData.reduce((sum, facility) => sum + facility.totalOccupied, 0);
+    const emptyStructures = occupancyData.reduce((sum, facility) => sum + facility.emptyStructures, 0);
+    const capacityUtilization = totalCapacity > 0 ? (totalOccupied / totalCapacity) * 100 : 0;
+    
     return {
       activePlants: activePlants.length,
       veg,
@@ -103,8 +126,12 @@ export default function Dashboard() {
       soldGramsInPeriod,
       estRevenue,
       alerts: Math.max(0, plants.length + harvests.length - 5),
+      totalCapacity,
+      totalOccupied,
+      emptyStructures,
+      capacityUtilization,
     };
-  }, [plants, harvests, soldPeriod, revenuePeriod]);
+  }, [plants, harvests, soldPeriod, revenuePeriod, occupancyData]);
 
   const shortcuts = useMemo(() => {
     type Btn = { label: string; to: string; icon: React.ReactNode; tone?: 'danger' | 'warn' | 'neutral' };
@@ -130,47 +157,95 @@ export default function Dashboard() {
 
     const out: Btn[] = [];
 
-    // Pending harvest by top sites
+    // CRITICAL ACTIONS FIRST (danger tone)
+    
+    // Pending harvest by top sites (highest priority)
     for (const [site, count] of bySiteCounts(readyForHarvest, (p) => p.location).slice(0, 4)) {
       out.push({ label: `Harvest ${site}` /* was: (${count}) */, to: '/wizard?step=2', icon: <Scissors className="h-4 w-4" aria-hidden />, tone: 'danger' });
     }
+
+    // Flip candidates by site (time-sensitive)
+    for (const [site, count] of bySiteCounts(flipCandidates, (p) => p.location).slice(0, 3)) {
+      out.push({ label: `Flip plants in ${site}` /* was: (${count}) */, to: '/calendar', icon: <FlipHorizontal2 className="h-4 w-4" aria-hidden />, tone: 'danger' });
+    }
+
+    // UPCOMING ACTIONS (warn tone)
+    
     // Soon-to-harvest by site
     for (const [site, count] of bySiteCounts(soonHarvest, (p) => p.location).slice(0, 2)) {
       out.push({ label: `Harvest ${site}` /* was: (${count}) */, to: '/wizard?step=2', icon: <Scissors className="h-4 w-4" aria-hidden />, tone: 'warn' });
     }
-
-    // Flip candidates by site
-    for (const [site, count] of bySiteCounts(flipCandidates, (p) => p.location).slice(0, 3)) {
-      out.push({ label: `Flip plants in ${site}` /* was: (${count}) */, to: '/calendar', icon: <FlipHorizontal2 className="h-4 w-4" aria-hidden />, tone: 'danger' });
-    }
+    
     // Soon-to-flip by site
     for (const [site, count] of bySiteCounts(soonFlip, (p) => p.location).slice(0, 2)) {
       out.push({ label: `Flip plants in ${site}` /* was: (${count}) */, to: '/calendar', icon: <FlipHorizontal2 className="h-4 w-4" aria-hidden />, tone: 'warn' });
     }
 
-    // Transplant suggestions from indoor rooms
-    for (const [site, count] of bySiteCounts(transplantCandidates, (p) => p.location).slice(0, 2)) {
-      out.push({ label: `Transplant from ${site}` /* was: (${count}) */, to: '/calendar', icon: <ArrowRightLeft className="h-4 w-4" aria-hidden />, tone: 'neutral' });
-    }
-
-    // Drying checks by site (map harvests -> plant site)
+    // Drying checks (critical timing)
     const dryingBySite = bySiteCounts(
       dryingHarvests.map((h) => ({ site: siteOf(plantById.get(h.plantId)?.location) })),
       (x) => x.site,
     ).slice(0, 2);
     for (const [site, count] of dryingBySite) {
-      out.push({ label: `Check drying in ${site}` /* was: (${count}) */, to: '/inventory', icon: <Scissors className="h-4 w-4" aria-hidden />, tone: 'neutral' });
+      out.push({ label: `Check drying in ${site}` /* was: (${count}) */, to: '/inventory', icon: <Scissors className="h-4 w-4" aria-hidden />, tone: 'warn' });
     }
 
-  return out.slice(0, 10); // cap to 10 as requested to preview crowded UI
-  }, [plants, harvests, activeModule]);
+    // SCHEDULED TASKS (neutral tone)
+    
+    // Transplant suggestions from indoor rooms
+    for (const [site, count] of bySiteCounts(transplantCandidates, (p) => p.location).slice(0, 2)) {
+      out.push({ label: `Transplant from ${site}` /* was: (${count}) */, to: '/calendar', icon: <ArrowRightLeft className="h-4 w-4" aria-hidden />, tone: 'neutral' });
+    }
+
+    // CAPACITY MANAGEMENT (lowest priority)
+    
+    // Empty structures alerts
+    const emptyStructures = occupancyData.flatMap(f => f.structures.filter((s: any) => s.isEmpty));
+    for (const structure of emptyStructures.slice(0, 2)) {
+      out.push({ 
+        label: `Empty ${structure.structureType}: ${structure.structureName}`, 
+        to: '/sites', 
+        icon: <Package2 className="h-4 w-4" aria-hidden />, 
+        tone: 'neutral' 
+      });
+    }
+
+    return out.slice(0, 10); // cap to 10 as requested to preview crowded UI
+  }, [plants, harvests, activeModule, occupancyData]);
 
   const calendar = useMemo(() => {
     if (activeModule !== 'cannabis') return [] as Array<{ date: Date; items: { label: string; type: any; href?: string }[] }>;
-    const evs = computeEventsForCannabis(plants, harvests);
+    
+    // Get system-generated events
+    const systemEvents = computeEventsForCannabis(plants, harvests);
+    
+    // Get custom events from database and format them
+    const customEventsArray = Array.isArray(customEvents) ? customEvents : [];
+    const customEventsFormatted = customEventsArray
+      .filter(event => event && event.date) // Filter out events without dates
+      .map(event => {
+        const eventDate = new Date(event.date);
+        // Validate that the date is valid
+        if (isNaN(eventDate.getTime())) {
+          console.warn('Invalid date for event:', event);
+          return null;
+        }
+        return {
+          date: eventDate,
+          type: 'custom' as const,
+          label: event.title,
+          href: `/calendar?eventId=${event.id}`,
+          eventId: event.id
+        };
+      })
+      .filter((event): event is { date: Date; type: 'custom'; label: string; href: string; eventId: number } => event !== null);
+    
+    // Combine system and custom events - we need to cast to handle the union type
+    const allEvents = [...systemEvents, ...customEventsFormatted] as Array<{ date: Date; type: any; label: string; href?: string; eventId?: number }>;
+    
     // prepare next 14 days; list is scrollable so only ~3 rows are visible
-    return nextNDays(evs, 14);
-  }, [plants, harvests, activeModule]);
+    return nextNDays(allEvents as any, 14);
+  }, [plants, harvests, customEvents, activeModule]);
 
   // Track scroll end for Upcoming list to reveal "Open calendar" only at the end
   const upcomingRef = useRef<HTMLDivElement>(null);
@@ -285,6 +360,24 @@ export default function Dashboard() {
                       <option value="yby">Year before last</option>
                     </select>
                   }
+                />
+              </div>
+              {/* Row 4: Capacity Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <KPI
+                  label="Capacity Utilization"
+                  value={`${Math.round(kpis.capacityUtilization)}%`}
+                  icon={<Package2 className="h-5 w-5 text-purple-600" aria-hidden />}
+                />
+                <KPI
+                  label="Empty Structures"
+                  value={kpis.emptyStructures}
+                  icon={<Package2 className="h-5 w-5 text-amber-600" aria-hidden />}
+                />
+                <KPI
+                  label="Total Capacity"
+                  value={`${kpis.totalOccupied}/${kpis.totalCapacity}`}
+                  icon={<Package2 className="h-5 w-5 text-blue-600" aria-hidden />}
                 />
               </div>
             </div>
@@ -419,6 +512,51 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+        </Card>
+      )}
+
+      {activeModule === 'cannabis' && occupancyData.length > 0 && (
+        <Card>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-medium text-gray-900">Facility Capacity</h2>
+            <Link to="/sites" className="text-sm text-primary hover:underline">View Details</Link>
+          </div>
+          <div className="space-y-3">
+            {occupancyData.slice(0, 5).map((facility: any) => (
+              <div key={facility.facilityId} className="border rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium text-gray-900">{facility.facilityName}</h3>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    facility.occupancyRate > 0.8 
+                      ? 'bg-green-100 text-green-800'
+                      : facility.occupancyRate > 0.5
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {Math.round(facility.occupancyRate * 100)}% utilized
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>{facility.totalOccupied}/{facility.totalCapacity} capacity</span>
+                  {facility.emptyStructures > 0 && (
+                    <span className="text-amber-600">{facility.emptyStructures} empty structures</span>
+                  )}
+                </div>
+                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full ${
+                      facility.occupancyRate > 0.8 
+                        ? 'bg-green-500'
+                        : facility.occupancyRate > 0.5
+                        ? 'bg-yellow-500'
+                        : 'bg-red-500'
+                    }`}
+                    style={{ width: `${Math.min(100, facility.occupancyRate * 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
       )}
 

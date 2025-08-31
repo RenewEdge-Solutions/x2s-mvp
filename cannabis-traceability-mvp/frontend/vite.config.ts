@@ -38,7 +38,7 @@ export default defineConfig(({ mode }) => {
           target,
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path.replace(/^\/api/, '')
+          // Don't rewrite the path since backend now has global /api prefix
         }
       }
     },

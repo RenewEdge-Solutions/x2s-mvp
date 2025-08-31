@@ -16,11 +16,15 @@ import { Facility } from './locations/facility.entity';
 import { Structure } from './locations/structure.entity';
 import { EquipmentModule } from './equipment/equipment.module';
 import { Equipment } from './equipment/equipment.entity';
+import { InventoryModule } from './inventory/inventory.module';
+import { InventoryItem } from './inventory/inventory.entity';
+import { EventsModule } from './events/events.module';
+import { Event } from './events/event.entity';
 
 @Module({
   imports: [
   TypeOrmModule.forRootAsync(ormConfig),
-  TypeOrmModule.forFeature([Plant, Harvest, Geolocation, Facility, Structure, Equipment]),
+  TypeOrmModule.forFeature([Plant, Harvest, Geolocation, Facility, Structure, Equipment, InventoryItem, Event]),
     AuthModule,
     UsersModule,
     PlantsModule,
@@ -30,6 +34,8 @@ import { Equipment } from './equipment/equipment.entity';
   ReportsModule,
   LocationsModule,
   EquipmentModule,
+  InventoryModule,
+  EventsModule,
   ],
 })
 export class AppModule {}

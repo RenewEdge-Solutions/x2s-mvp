@@ -8,6 +8,10 @@ const altBaseFor = (base: string) => base.includes('3002') ? base.replace('3002'
 async function fetchJson(path: string, init?: RequestInit) {
   const tryOnce = async (base: string) => {
     const res = await fetch(`${base}${path}`, init);
+    // If we get a 500 error, throw an error to trigger fallbacks
+    if (!res.ok && res.status >= 500) {
+      throw new Error(`Server error: ${res.status}`);
+    }
     return res;
   };
   try {
@@ -26,6 +30,38 @@ async function fetchJson(path: string, init?: RequestInit) {
     } catch (e2) {
       throw e; // rethrow original
     }
+  }
+}
+
+// Helper function to safely call API with fallback to empty array
+async function safeApiCall<T>(apiCall: () => Promise<Response>, fallback: T[] = []): Promise<T[]> {
+  try {
+    const response = await apiCall();
+    if (!response.ok) {
+      console.warn(`API call failed with status ${response.status}`);
+      return fallback;
+    }
+    const data = await response.json();
+    return Array.isArray(data) ? data : fallback;
+  } catch (error) {
+    console.warn('API call failed:', error);
+    return fallback;
+  }
+}
+
+// Helper function to safely call API with fallback to empty object
+async function safeApiCallObject<T>(apiCall: () => Promise<Response>, fallback: T = {} as T): Promise<T> {
+  try {
+    const response = await apiCall();
+    if (!response.ok) {
+      console.warn(`API call failed with status ${response.status}`);
+      return fallback;
+    }
+    const data = await response.json();
+    return data ?? fallback;
+  } catch (error) {
+    console.warn('API call failed:', error);
+    return fallback;
   }
 }
 
@@ -49,17 +85,65 @@ export const api = {
     return res.json();
   },
   getPlants() {
-  return fetchJson(`/plants`).then((r) => r.json());
+    return safeApiCall(() => fetchJson(`/plants`));
   },
   createPlant(data: { strain: string; location: string; by?: string }) {
-  return fetchJson(`/plants`, {
+    return fetchJson(`/plants`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-  }).then((r) => r.json());
+    }).then((r) => r.json());
+  },
+  germinateFromSeed(data: { seedId: string; strain: string; location: string; by?: string }) {
+    return fetchJson(`/plants/germinate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then((r) => r.json());
+  },
+  relocatePlant(plantId: string, location: string) {
+    return fetchJson(`/plants/${plantId}/relocate`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ location }),
+    }).then((r) => r.json());
+  },
+  flipPlant(plantId: string) {
+    return fetchJson(`/plants/${plantId}/flip`, {
+      method: 'PUT',
+    }).then((r) => r.json());
+  },
+  harvestPlant(plantId: string) {
+    return fetchJson(`/plants/${plantId}/harvest`, {
+      method: 'PUT',
+    }).then((r) => r.json());
+  },
+  dryPlant(plantId: string) {
+    return fetchJson(`/plants/${plantId}/dry`, {
+      method: 'PUT',
+    }).then((r) => r.json());
+  },
+  markPlantDried(plantId: string) {
+    return fetchJson(`/plants/${plantId}/dried`, {
+      method: 'PUT',
+    }).then((r) => r.json());
+  },
+  changePlantStage(plantId: string, stage: string) {
+    return fetchJson(`/plants/${plantId}/stage`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage }),
+    }).then((r) => r.json());
+  },
+  deletePlant(plantId: string, reason: string, by?: string) {
+    return fetchJson(`/plants/${plantId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason, by }),
+    }).then((r) => r.json());
   },
   getHarvests() {
-  return fetchJson(`/harvests`).then((r) => r.json());
+    return safeApiCall(() => fetchJson(`/harvests`));
   },
   createHarvest(data: { plantId: string; yieldGrams: number; status: 'drying' | 'dried'; by?: string }) {
   return fetchJson(`/harvests`, {
@@ -176,6 +260,122 @@ export const api = {
   return fetchJson(`/equipment/location/${encodeURIComponent(location)}`).then((r) => r.json());
   },
   deleteEquipment(id: string) {
-  return fetchJson(`/equipment/${id}`, { method: 'DELETE' });
+    return fetchJson(`/equipment/${id}`, { method: 'DELETE' });
+  },
+
+  // Inventory API
+  createInventoryItem(data: {
+    name: string;
+    category: string;
+    subcategory: string;
+    itemType?: string;
+    quantity: number;
+    unit: string;
+    location: string;
+    supplier?: string;
+    purchaseDate?: string;
+    expiryDate?: string;
+    cost?: number;
+    specificFields?: Record<string, any>;
+  }) {
+    return fetchJson('/inventory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then((r) => r.json());
+  },
+  getInventoryItems() {
+    return fetchJson('/inventory').then((r) => r.json());
+  },
+  getInventoryItem(id: string) {
+    return fetchJson(`/inventory/${id}`).then((r) => r.json());
+  },
+  updateInventoryItem(id: string, data: Partial<{
+    name: string;
+    category: string;
+    subcategory: string;
+    itemType?: string;
+    quantity: number;
+    unit: string;
+    location: string;
+    supplier?: string;
+    purchaseDate?: string;
+    expiryDate?: string;
+    cost?: number;
+    specificFields?: Record<string, any>;
+  }>) {
+    return fetchJson(`/inventory/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then((r) => r.json());
+  },
+  deleteInventoryItem(id: string) {
+    return fetchJson(`/inventory/${id}`, { method: 'DELETE' });
+  },
+  getInventoryByCategory(category: string) {
+    return fetchJson(`/inventory/category/${encodeURIComponent(category)}`).then((r) => r.json());
+  },
+  getInventoryBySubcategory(category: string, subcategory: string) {
+    return fetchJson(`/inventory/category/${encodeURIComponent(category)}/subcategory/${encodeURIComponent(subcategory)}`).then((r) => r.json());
+  },
+
+  // Additional missing Location methods
+  getAllStructures() {
+    return fetchJson(`/locations/structures`).then((r) => r.json());
+  },
+  getAllOccupancy() {
+    return safeApiCall(() => fetchJson(`/locations/occupancy`));
+  },
+  getFacilityOccupancy(facilityId: string) {
+    return fetchJson(`/locations/occupancy/facility/${facilityId}`).then((r) => r.json());
+  },
+  getStructureOccupancy(structureId: string) {
+    return fetchJson(`/locations/occupancy/structure/${structureId}`).then((r) => r.json());
+  },
+  getEmptyCapacityAlerts() {
+    return safeApiCallObject(() => fetchJson(`/locations/occupancy/alerts`), {
+      emptyStructures: [],
+      lowUtilizationStructures: [],
+      overCapacityStructures: []
+    });
+  },
+
+  // Events API
+  getEvents() {
+    return safeApiCall(() => fetchJson('/events'));
+  },
+  createEvent(data: {
+    title: string;
+    description?: string;
+    eventType: string;
+    startDate: string;
+    endDate?: string;
+    location?: string;
+    metadata?: Record<string, any>;
+  }) {
+    return fetchJson('/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then((r) => r.json());
+  },
+  updateEvent(id: number, data: Partial<{
+    title: string;
+    description?: string;
+    eventType: string;
+    startDate: string;
+    endDate?: string;
+    location?: string;
+    metadata?: Record<string, any>;
+  }>) {
+    return fetchJson(`/events/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then((r) => r.json());
+  },
+  deleteEvent(id: number) {
+    return fetchJson(`/events/${id}`, { method: 'DELETE' });
   },
 };

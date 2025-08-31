@@ -32,9 +32,11 @@ docker compose up --build
 
 | Role | Username | Password | 2FA Code |
 |------|----------|----------|----------|
-| Regulator | regulator1 | pass123 | Any 6 digits |
-| Operator | operator1 | pass123 | Any 6 digits |
-| Auditor | auditor1 | pass123 | Any 6 digits |
+| Operator (Farmer) | Farmer | 1234 | Any 6 digits |
+| Regulator | Regulator | 1234 | Any 6 digits |
+| Auditor | Auditor | 1234 | Any 6 digits |
+| Operator (Shop) | Shop | 1234 | Any 6 digits |
+| Operator (Lab) | Lab | 1234 | Any 6 digits |
 
 ## ✨ Features
 
@@ -46,7 +48,7 @@ docker compose up --build
 
 ## 📋 Example Flow
 
-1. 🔐 Login as `operator1` / `pass123` (2FA: any 6 digits)
+1. 🔐 Login as `Farmer` / `1234` (2FA: any 6 digits)
 2. 🧙‍♂️ Open Wizard
 3. 🌱 Plant seed (select strain + location) → View computed hash
 4. 🌾 Harvest from created plant → View updated hash

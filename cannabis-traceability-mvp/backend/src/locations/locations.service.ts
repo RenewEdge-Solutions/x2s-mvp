@@ -42,6 +42,7 @@ export class LocationsService {
   async deleteFacility(id: string) { await this.facilities.delete(id); }
 
   // Structures
+  listAllStructures() { return this.structures.find({ order: { name: 'ASC' }, relations: ['facility', 'facility.geo'] }); }
   listStructures(facilityId: string) { return this.structures.find({ where: { facility: { id: facilityId } as any }, order: { name: 'ASC' }, relations: ['facility'] }); }
   async createStructure(dto: { facilityId: string; name: string; type: StructureType; size?: number; beds?: number; usage: StructureUsage; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> }) {
     const facility = await this.facilities.findOneByOrFail({ id: dto.facilityId });
