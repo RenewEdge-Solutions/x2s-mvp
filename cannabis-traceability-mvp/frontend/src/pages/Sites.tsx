@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import Card from '../components/Card';
 import { api } from '../lib/api';
 import { useModule } from '../context/ModuleContext';
-import { Sprout, Map as MapIcon, Layers, ChevronRight, ChevronLeft, Info, ChevronDown, Plus, MapPin } from 'lucide-react';
+import { Sprout, Map as MapIcon, Layers, ChevronRight, ChevronLeft, Info, ChevronDown, Plus, MapPin, Settings } from 'lucide-react';
 
 type Plant = {
   id: string;
@@ -188,7 +188,16 @@ export default function Sites() {
     (async () => {
       try {
         const list = await api.getStructures(selectedFacility);
-        const mapped = list.map((s: any) => ({ id: s.id, facility: s.facility?.id, name: s.name, type: s.type, size: s.size }));
+        const mapped = list.map((s: any) => ({ 
+          id: s.id, 
+          facility: s.facility?.id, 
+          name: s.name, 
+          type: s.type, 
+          size: s.size,
+          usage: s.usage,
+          tents: s.tents,
+          racks: s.racks
+        }));
         // Merge with any structures from other facilities
         setStructureList((prev: any[]) => {
           const others = prev.filter((x) => x.facility !== selectedFacility);
@@ -247,7 +256,16 @@ export default function Sites() {
           ids.map(async (fid) => {
             try {
               const list = await api.getStructures(fid);
-              return list.map((s: any) => ({ id: s.id, facility: s.facility?.id, name: s.name, type: s.type, size: s.size }));
+              return list.map((s: any) => ({ 
+                id: s.id, 
+                facility: s.facility?.id, 
+                name: s.name, 
+                type: s.type, 
+                size: s.size,
+                usage: s.usage,
+                tents: s.tents,
+                racks: s.racks
+              }));
             } catch {
               return [] as any[];
             }
@@ -265,21 +283,69 @@ export default function Sites() {
     })();
   }, [facilitiesForGeo]);
 
+  // Load equipment data when module is cannabis
+  useEffect(() => {
+    if (activeModule !== 'cannabis') return;
+    (async () => {
+      try {
+        const equipment = await api.getEquipment();
+        setEquipmentList(equipment);
+      } catch (e) {
+        console.error('Failed to load equipment:', e);
+        setEquipmentList([]);
+      }
+    })();
+  }, [activeModule]);
+
   // Modals state
   const [geoModalOpen, setGeoModalOpen] = useState(false);
   const [geoForm, setGeoForm] = useState<{ name: string; address: string; lat?: number; lng?: number }>({ name: '', address: '' });
   const [facilityModalOpen, setFacilityModalOpen] = useState(false);
   const [facilityForm, setFacilityForm] = useState<{ name: string; type: 'farm' | 'building' }>({ name: '', type: 'farm' });
   // Structures (per facility)
-  type Structure = { facility: string; type: 'room' | 'greenhouse'; name: string; size?: number; usage?: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents'; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> };
+  type Structure = { id?: string; facility: string; type: 'room' | 'greenhouse'; name: string; size?: number; usage?: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents'; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> };
   const loadStructures = (): Structure[] => {
     try { return JSON.parse(localStorage.getItem('mvp.structures') || '[]'); } catch { return []; }
   };
   const [structureList, setStructureList] = useState<Structure[]>(loadStructures);
   const persistStructures = (arr: Structure[]) => { setStructureList(arr); localStorage.setItem('mvp.structures', JSON.stringify(arr)); };
   const [structureModalOpen, setStructureModalOpen] = useState(false);
+  
+  // Equipment state
+  type Equipment = { 
+    id: string; 
+    type: string; 
+    subtype: string; 
+    details: Record<string, string>; 
+    location: string; 
+    iotDevice?: string; 
+    createdAt: string; 
+  };
+  const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
+  
   // Equipment modal state
   const [equipModalOpen, setEquipModalOpen] = useState(false);
+  const [equipForm, setEquipForm] = useState<{ 
+    name: string; 
+    category: string; 
+    type: string; 
+    power: string; 
+    specification: string; 
+    location: string; 
+    description: string; 
+    iotDevice: string;
+  }>({ 
+    name: '', 
+    category: '', 
+    type: '', 
+    power: '', 
+    specification: '', 
+    location: '', 
+    description: '',
+    iotDevice: ''
+  });
+  const [iotScanning, setIotScanning] = useState(false);
+  const [iotDevices, setIotDevices] = useState<Array<{id: string; name: string; type: string; signal: number}>>([]);
   const [structureForm, setStructureForm] = useState<{ name: string; type: 'room' | 'greenhouse'; size: string; usage: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents' | ''; tents: Array<{ widthFt: string; lengthFt: string }>; racks: Array<{ widthCm: string; lengthCm: string; shelves: string }> }>({ name: '', type: 'room', size: '', usage: '', tents: [], racks: [] });
   // Structures available for the currently selected facility
   const topsForFacility = useMemo(() => {
@@ -301,6 +367,20 @@ export default function Sites() {
     if (!selectedTop) return [] as Sublocation[];
     return Object.values(locations[selectedTop]?.sublocations || {}).sort((a, b) => a.key.localeCompare(b.key));
   }, [locations, selectedTop]);
+
+  // Get current structure data for equipment location options
+  const currentStructure = useMemo(() => {
+    if (!selectedTop || !selectedFacility) return null;
+    const found = structureList.find(s => {
+      const structureName = s.type === 'room'
+        ? `Indoor ${s.name.replace(/^Indoor\s+/i, '')}`
+        : (s.name.match(/^Greenhouse\s+/i) ? s.name : `Greenhouse ${s.name.replace(/^Greenhouse\s+/i, '')}`);
+      const facilityName = facilityList.find(f => f.id === selectedFacility)?.name || '';
+      const key = `${structureName} - ${facilityName}`;
+      return key === selectedTop;
+    });
+    return found;
+  }, [selectedTop, selectedFacility, structureList, facilityList]);
 
   if (activeModule !== 'cannabis') {
     return (
@@ -504,7 +584,10 @@ export default function Sites() {
                   <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
                     {tops.map((loc) => {
                       const subs = Object.values(loc.sublocations);
-                      const plantCount = subs.reduce((a, s) => a + s.plants.length, 0) + loc.plants.length;
+                      // Count real equipment for this structure
+                      const equipmentCount = equipmentList.filter(eq => 
+                        eq.location.startsWith(loc.key)
+                      ).length;
                       const active = selectedTop === loc.key;
                       const subsTyped = subs.map((s) => s.type);
                       const countBy = (t: Sublocation['type']) => subsTyped.filter((x) => x === t).length;
@@ -517,16 +600,16 @@ export default function Sites() {
                           const parts: string[] = [];
                           if (tents > 0) parts.push(plural(tents, 'tent'));
                           if (racks > 0) parts.push(plural(racks, 'rack'));
-                          parts.push(plural(plantCount, 'plant'));
+                          parts.push(plural(equipmentCount, 'equipment'));
                           return parts.join(' . ');
                         }
                         if (loc.type === 'greenhouse') {
                           const parts: string[] = [];
                           if (beds > 0) parts.push(plural(beds, 'bed'));
-                          parts.push(plural(plantCount, 'plant'));
+                          parts.push(plural(equipmentCount, 'equipment'));
                           return parts.join(' . ');
                         }
-                        return `${subs.length} areas . ${plural(plantCount, 'plant')}`;
+                        return `${subs.length} areas . ${plural(equipmentCount, 'equipment')}`;
                       })();
                       return (
                         <li key={loc.key}>
@@ -584,7 +667,39 @@ export default function Sites() {
                     <Plus className="h-4 w-4" aria-hidden />
                   </button>
                 </div>
-                <div className="border border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-500">No equipment</div>
+                {(() => {
+                  // Get equipment for the selected structure
+                  const structureEquipment = equipmentList.filter(eq => 
+                    eq.location.startsWith(selectedTop || '')
+                  );
+                  
+                  return structureEquipment.length > 0 ? (
+                    <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
+                      {structureEquipment.map((equipment) => (
+                        <li key={equipment.id} className="px-3 py-2">
+                          <div className="flex items-center justify-between">
+                            <div className="min-w-0">
+                              <div className="text-base text-gray-900 truncate">
+                                {equipment.details.Name || `${equipment.type} ${equipment.subtype}`}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {equipment.type} → {equipment.subtype}
+                                {equipment.details.Power && ` → ${equipment.details.Power}W`}
+                                {equipment.details.Specification && ` → ${equipment.details.Specification}`}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                {equipment.location.split(' → ').slice(1).join(' → ')}
+                                {equipment.iotDevice && ` • IoT: ${equipment.iotDevice}`}
+                              </div>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="border border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-500">No equipment</div>
+                  );
+                })()}
               </div>
             </Card>
           </div>
@@ -608,8 +723,15 @@ export default function Sites() {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Name</label>
-                <input className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base" value={geoForm.name} onChange={(e)=> setGeoForm(v=>({...v, name: e.target.value}))} placeholder="e.g., Munich HQ"/>
+                <label className="block text-sm text-gray-700 mb-1">Name *</label>
+                <input 
+                  className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                    !geoForm.name.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  }`}
+                  value={geoForm.name} 
+                  onChange={(e)=> setGeoForm(v=>({...v, name: e.target.value}))} 
+                  placeholder="e.g., Munich HQ"
+                />
               </div>
               <div>
                 <label className="block text-sm text-gray-700 mb-1">Address</label>
@@ -661,15 +783,22 @@ export default function Sites() {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Type</label>
+                <label className="block text-sm text-gray-700 mb-1">Type *</label>
                 <select className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base" value={facilityForm.type} onChange={(e)=> setFacilityForm(v=>({...v, type: e.target.value as any}))}>
                   <option value="farm">Farm</option>
                   <option value="building">Building</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Name</label>
-                <input className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base" value={facilityForm.name} onChange={(e)=> setFacilityForm(v=>({...v, name: e.target.value}))} placeholder="e.g., North Farm or Building A"/>
+                <label className="block text-sm text-gray-700 mb-1">Name *</label>
+                <input 
+                  className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                    !facilityForm.name.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  }`}
+                  value={facilityForm.name} 
+                  onChange={(e)=> setFacilityForm(v=>({...v, name: e.target.value}))} 
+                  placeholder="e.g., North Farm or Building A"
+                />
               </div>
             </div>
             <div className="mt-4 flex items-center justify-end gap-2">
@@ -734,14 +863,16 @@ export default function Sites() {
                 );
               })()}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Name</label>
+                <label className="block text-sm text-gray-700 mb-1">Name *</label>
                 {(() => {
                   const f = facilityList.find((x)=> x.id === selectedFacility);
                   const allowed: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
                   const ph = allowed === 'room' ? 'e.g., Room 1' : 'e.g., Greenhouse 2';
                   return (
                     <input
-                      className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base"
+                      className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                        !structureForm.name.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                      }`}
                       value={structureForm.name}
                       onChange={(e)=> setStructureForm((v)=> ({ ...v, name: e.target.value }))}
                       placeholder={ph}
@@ -751,19 +882,23 @@ export default function Sites() {
               </div>
               {/* Size first (always above Usage) */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Size (m²)</label>
+                <label className="block text-sm text-gray-700 mb-1">Size (m²) *</label>
                 <input
                   type="number"
                   min="0"
                   step="0.1"
-                  className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base"
+                  className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                    !structureForm.size || isNaN(Number(structureForm.size)) || Number(structureForm.size) <= 0
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300'
+                  }`}
                   value={structureForm.size}
                   onChange={(e)=> setStructureForm((v)=> ({ ...v, size: e.target.value }))}
                   placeholder="e.g., 120"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Usage</label>
+                <label className="block text-sm text-gray-700 mb-1">Usage *</label>
                 {(() => {
                   const f = facilityList.find((x)=> x.id === selectedFacility);
                   const allowed: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
@@ -774,11 +909,13 @@ export default function Sites() {
                   }
                   return (
                     <select
-                      className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base"
+                      className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                        !structureForm.usage ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                      }`}
                       value={structureForm.usage}
                       onChange={(e)=> {
                         const next = e.target.value as any;
-                        setStructureForm((v)=> ({ ...v, usage: next, tents: next === 'Racks/Tents' ? (v.tents?.length ? v.tents : [{ widthFt: '', lengthFt: '' }] ) : [], racks: next === 'Racks/Tents' ? (v.racks?.length ? v.racks : [{ widthCm: '', lengthCm: '', shelves: '' }]) : [] }));
+                        setStructureForm((v)=> ({ ...v, usage: next, tents: next === 'Racks/Tents' ? (v.tents || []) : [], racks: next === 'Racks/Tents' ? (v.racks || []) : [] }));
                       }}
                     >
                       <option value="">Select…</option>
@@ -821,7 +958,11 @@ export default function Sites() {
                         <div key={ti} className="flex items-center gap-2">
                           <span className="text-xs text-gray-600">Tent {ti+1}</span>
                           <input
-                            className="w-20 border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                            className={`w-20 rounded-md focus:ring-primary focus:border-primary ${
+                              !t.widthFt || isNaN(Number(t.widthFt)) || Number(t.widthFt) <= 0 
+                                ? 'border-red-300 bg-red-50' 
+                                : 'border-gray-300'
+                            }`}
                             placeholder="Width ft"
                             inputMode="numeric"
                             value={t.widthFt}
@@ -829,7 +970,11 @@ export default function Sites() {
                           />
                           <span className="text-gray-500">×</span>
                           <input
-                            className="w-20 border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                            className={`w-20 rounded-md focus:ring-primary focus:border-primary ${
+                              !t.lengthFt || isNaN(Number(t.lengthFt)) || Number(t.lengthFt) <= 0 
+                                ? 'border-red-300 bg-red-50' 
+                                : 'border-gray-300'
+                            }`}
                             placeholder="Length ft"
                             inputMode="numeric"
                             value={t.lengthFt}
@@ -858,7 +1003,11 @@ export default function Sites() {
                         <div key={ri} className="flex items-center gap-2">
                           <span className="text-xs text-gray-600">Rack {ri+1}</span>
                           <input
-                            className="w-24 border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                            className={`w-24 rounded-md focus:ring-primary focus:border-primary ${
+                              !r.widthCm || isNaN(Number(r.widthCm)) || Number(r.widthCm) <= 0 
+                                ? 'border-red-300 bg-red-50' 
+                                : 'border-gray-300'
+                            }`}
                             placeholder="Width cm"
                             inputMode="numeric"
                             value={r.widthCm}
@@ -866,7 +1015,11 @@ export default function Sites() {
                           />
                           <span className="text-gray-500">×</span>
                           <input
-                            className="w-24 border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                            className={`w-24 rounded-md focus:ring-primary focus:border-primary ${
+                              !r.lengthCm || isNaN(Number(r.lengthCm)) || Number(r.lengthCm) <= 0 
+                                ? 'border-red-300 bg-red-50' 
+                                : 'border-gray-300'
+                            }`}
                             placeholder="Length cm"
                             inputMode="numeric"
                             value={r.lengthCm}
@@ -874,7 +1027,11 @@ export default function Sites() {
                           />
                           <span className="text-gray-500">·</span>
                           <input
-                            className="w-24 border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                            className={`w-24 rounded-md focus:ring-primary focus:border-primary ${
+                              !r.shelves || isNaN(Number(r.shelves)) || Number(r.shelves) <= 0 
+                                ? 'border-red-300 bg-red-50' 
+                                : 'border-gray-300'
+                            }`}
                             placeholder="# Shelves"
                             inputMode="numeric"
                             value={r.shelves}
@@ -901,7 +1058,7 @@ export default function Sites() {
               <button className="px-3 py-1.5 text-sm text-gray-700" onClick={()=> setStructureModalOpen(false)}>Cancel</button>
               <button
                 className="inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50"
-                disabled={!structureForm.name.trim() || structureForm.size.trim() === '' || !structureForm.usage || (structureForm.usage === 'Racks/Tents' && (()=>{
+                disabled={!structureForm.name.trim() || !structureForm.size || isNaN(Number(structureForm.size)) || Number(structureForm.size) <= 0 || !structureForm.usage || (structureForm.usage === 'Racks/Tents' && (()=>{
                   const ft2m = (ft:number)=> ft*0.3048; const areaT = (w:number,l:number)=> ft2m(w)*ft2m(l);
                   const totalT = (structureForm.tents||[]).reduce((s,t)=> s + areaT(Number(t.widthFt||0), Number(t.lengthFt||0)), 0);
                   const cm2m = (cm:number)=> cm/100; const areaR = (w:number,l:number)=> cm2m(w)*cm2m(l);
@@ -930,6 +1087,374 @@ export default function Sites() {
                 }}
               >
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Equipment Modal */}
+      {equipModalOpen && selectedTop && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-[640px] max-w-[95vw] p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Settings className="h-5 w-5 text-primary" aria-hidden />
+              <h3 className="text-base font-semibold text-gray-900">Add equipment to {selectedTop}</h3>
+            </div>
+            <div className="space-y-3">
+              {/* Equipment Category */}
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Equipment Category *</label>
+                <select 
+                  className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                    !equipForm.category ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  }`}
+                  value={equipForm.category}
+                  onChange={(e) => {
+                    setEquipForm(v => ({...v, category: e.target.value, type: '', power: '', specification: ''}));
+                  }}
+                >
+                  <option value="">Select category...</option>
+                  <option value="lighting">Lighting</option>
+                  <option value="ventilation">Ventilation</option>
+                  <option value="irrigation">Irrigation</option>
+                  <option value="climate-control">Climate Control</option>
+                  <option value="monitoring">Monitoring</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* Equipment Type (based on category) */}
+              {equipForm.category && (
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Equipment Type *</label>
+                  <select 
+                    className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                      !equipForm.type ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    value={equipForm.type}
+                    onChange={(e) => setEquipForm(v => ({...v, type: e.target.value, power: '', specification: ''}))}
+                  >
+                    <option value="">Select type...</option>
+                    {equipForm.category === 'lighting' && (
+                      <>
+                        <option value="LED">LED</option>
+                        <option value="HPS">HPS (High Pressure Sodium)</option>
+                        <option value="MH">MH (Metal Halide)</option>
+                        <option value="CFL">CFL (Compact Fluorescent)</option>
+                        <option value="T5">T5 Fluorescent</option>
+                      </>
+                    )}
+                    {equipForm.category === 'ventilation' && (
+                      <>
+                        <option value="exhaust-fan">Exhaust Fan</option>
+                        <option value="intake-fan">Intake Fan</option>
+                        <option value="circulation-fan">Circulation Fan</option>
+                        <option value="carbon-filter">Carbon Filter</option>
+                      </>
+                    )}
+                    {equipForm.category === 'irrigation' && (
+                      <>
+                        <option value="drip-system">Drip System</option>
+                        <option value="sprinkler">Sprinkler</option>
+                        <option value="hydroponic">Hydroponic System</option>
+                        <option value="pump">Water Pump</option>
+                      </>
+                    )}
+                    {equipForm.category === 'climate-control' && (
+                      <>
+                        <option value="heater">Heater</option>
+                        <option value="air-conditioner">Air Conditioner</option>
+                        <option value="humidifier">Humidifier</option>
+                        <option value="dehumidifier">Dehumidifier</option>
+                      </>
+                    )}
+                    {equipForm.category === 'monitoring' && (
+                      <>
+                        <option value="temperature-sensor">Temperature Sensor</option>
+                        <option value="humidity-sensor">Humidity Sensor</option>
+                        <option value="ph-meter">pH Meter</option>
+                        <option value="camera">Security Camera</option>
+                      </>
+                    )}
+                    {equipForm.category === 'other' && (
+                      <option value="custom">Custom Equipment</option>
+                    )}
+                  </select>
+                </div>
+              )}
+
+              {/* Power/Size specification */}
+              {equipForm.type && (
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">
+                    {equipForm.category === 'lighting' ? 'Power (Watts) *' : 
+                     equipForm.category === 'ventilation' ? 'CFM Rating *' :
+                     equipForm.category === 'irrigation' ? 'Flow Rate *' :
+                     'Power/Capacity *'}
+                  </label>
+                  <input 
+                    className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                      !equipForm.power ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`} 
+                    type="number"
+                    min="1"
+                    max="100000"
+                    value={equipForm.power} 
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (isNaN(value) || value < 1 || value > 100000) return;
+                      setEquipForm(v => ({...v, power: e.target.value}));
+                    }} 
+                    placeholder={
+                      equipForm.category === 'lighting' ? 'e.g., 500, 1000' :
+                      equipForm.category === 'ventilation' ? 'e.g., 400' :
+                      equipForm.category === 'irrigation' ? 'e.g., 5' :
+                      'e.g., 1500, 200, etc.'
+                    }
+                  />
+                </div>
+              )}
+
+              {/* Specification details */}
+              {equipForm.power && (
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Specification *</label>
+                  <select 
+                    className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                      !equipForm.specification ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    value={equipForm.specification}
+                    onChange={(e) => setEquipForm(v => ({...v, specification: e.target.value}))}
+                  >
+                    <option value="">Select specification...</option>
+                    {equipForm.category === 'lighting' && (
+                      <>
+                        <option value="Full Spectrum">Full Spectrum</option>
+                        <option value="Red/Blue Spectrum">Red/Blue Spectrum</option>
+                        <option value="Vegetative Spectrum">Vegetative Spectrum</option>
+                        <option value="Flowering Spectrum">Flowering Spectrum</option>
+                        <option value="UV Enhanced">UV Enhanced</option>
+                      </>
+                    )}
+                    {equipForm.category === 'ventilation' && (
+                      <>
+                        <option value="Variable Speed">Variable Speed</option>
+                        <option value="Fixed Speed">Fixed Speed</option>
+                        <option value="Temperature Controlled">Temperature Controlled</option>
+                        <option value="Humidity Controlled">Humidity Controlled</option>
+                      </>
+                    )}
+                    {equipForm.category === 'irrigation' && (
+                      <>
+                        <option value="Timer Controlled">Timer Controlled</option>
+                        <option value="Manual Control">Manual Control</option>
+                        <option value="Sensor Controlled">Sensor Controlled</option>
+                        <option value="Pressure Compensated">Pressure Compensated</option>
+                      </>
+                    )}
+                    {equipForm.category === 'climate-control' && (
+                      <>
+                        <option value="Digital Thermostat">Digital Thermostat</option>
+                        <option value="Analog Control">Analog Control</option>
+                        <option value="Smart Control">Smart Control</option>
+                        <option value="Manual Control">Manual Control</option>
+                      </>
+                    )}
+                    {equipForm.category === 'monitoring' && (
+                      <>
+                        <option value="Wireless">Wireless</option>
+                        <option value="Wired">Wired</option>
+                        <option value="Data Logging">Data Logging</option>
+                        <option value="Real-time Alerts">Real-time Alerts</option>
+                      </>
+                    )}
+                    {equipForm.category === 'other' && (
+                      <option value="Standard">Standard</option>
+                    )}
+                  </select>
+                </div>
+              )}
+
+              {/* Location within structure */}
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Location in {selectedTop} *</label>
+                <select 
+                  className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                    !equipForm.location ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  }`}
+                  value={equipForm.location}
+                  onChange={(e) => setEquipForm(v => ({...v, location: e.target.value}))}
+                >
+                  <option value="">Select location...</option>
+                  <option value="General Room">General Room</option>
+                  
+                  {/* Show tents if available */}
+                  {currentStructure?.tents?.map((tent, index) => (
+                    <option key={`tent-${index}`} value={`Tent ${index + 1}`}>
+                      Tent {index + 1} ({tent.widthFt}' × {tent.lengthFt}')
+                    </option>
+                  ))}
+                  
+                  {/* Show racks if available */}
+                  {currentStructure?.racks?.map((rack, index) => (
+                    <option key={`rack-${index}`} value={`Rack ${index + 1}`}>
+                      Rack {index + 1} ({rack.widthCm}cm × {rack.lengthCm}cm, {rack.shelves} shelves)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Equipment name */}
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Equipment Name/ID *</label>
+                <input 
+                  className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                    !equipForm.name.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  }`} 
+                  value={equipForm.name} 
+                  onChange={(e) => setEquipForm(v => ({...v, name: e.target.value}))} 
+                  placeholder="e.g., LED Panel A1, Exhaust Fan North, etc."
+                />
+              </div>
+
+              {/* IoT Device Connection */}
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Connect IoT Device (optional)</label>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIotScanning(true);
+                        setIotDevices([]);
+                        
+                        // Simulate scanning for devices
+                        setTimeout(() => {
+                          const mockDevices = [
+                            { id: 'esp32-001', name: 'ESP32 Temperature Sensor', type: 'sensor', signal: 85 },
+                            { id: 'arduino-002', name: 'Arduino Light Controller', type: 'controller', signal: 72 },
+                            { id: 'rpi-003', name: 'Raspberry Pi Camera', type: 'camera', signal: 91 },
+                            { id: 'esp8266-004', name: 'ESP8266 Humidity Monitor', type: 'sensor', signal: 68 },
+                          ];
+                          setIotDevices(mockDevices);
+                          setIotScanning(false);
+                        }, 2000);
+                      }}
+                      disabled={iotScanning}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-md hover:bg-blue-100 disabled:opacity-50"
+                    >
+                      {iotScanning ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                          Scanning...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                          Scan for Devices
+                        </>
+                      )}
+                    </button>
+                    {equipForm.iotDevice && (
+                      <span className="flex items-center px-2 py-1 bg-green-50 border border-green-200 text-green-700 rounded-md text-sm">
+                        ✓ Connected: {iotDevices.find(d => d.id === equipForm.iotDevice)?.name || equipForm.iotDevice}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Device list */}
+                  {iotDevices.length > 0 && (
+                    <div className="border border-gray-200 rounded-md p-2 space-y-1 max-h-32 overflow-y-auto">
+                      <div className="text-xs text-gray-500 mb-1">Found {iotDevices.length} device(s):</div>
+                      {iotDevices.map((device) => (
+                        <div
+                          key={device.id}
+                          className={`flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
+                            equipForm.iotDevice === device.id 
+                              ? 'bg-green-50 border-green-200' 
+                              : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                          }`}
+                          onClick={() => setEquipForm(v => ({...v, iotDevice: device.id}))}
+                        >
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">{device.name}</div>
+                            <div className="text-xs text-gray-500">ID: {device.id} • Type: {device.type}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-xs text-gray-500">Signal: {device.signal}%</div>
+                            <div className={`w-2 h-2 rounded-full ${
+                              device.signal > 80 ? 'bg-green-500' :
+                              device.signal > 60 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}></div>
+                            {equipForm.iotDevice === device.id && (
+                              <span className="text-green-600 text-xs">✓</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button 
+                className="px-3 py-1.5 text-sm text-gray-700" 
+                onClick={() => setEquipModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50"
+                disabled={!equipForm.name.trim() || !equipForm.category || !equipForm.type || !equipForm.power || !equipForm.specification || !equipForm.location}
+                title={
+                  !equipForm.name.trim() ? "Equipment name is required" :
+                  !equipForm.category ? "Equipment category is required" :
+                  !equipForm.type ? "Equipment type is required" :
+                  !equipForm.power ? "Power specification is required" :
+                  !equipForm.specification ? "Specification details are required" :
+                  !equipForm.location ? "Location is required" :
+                  "Add equipment"
+                }
+                onClick={async () => {
+                  try {
+                    // Create equipment in database
+                    const equipmentData = {
+                      type: equipForm.category,
+                      subtype: equipForm.type,
+                      details: {
+                        'Name': equipForm.name.trim(),
+                        'Power': equipForm.power,
+                        'Specification': equipForm.specification,
+                        'Description': equipForm.description || ''
+                      },
+                      location: `${selectedTop} → ${equipForm.location}`,
+                      iotDevice: equipForm.iotDevice || undefined
+                    };
+                    
+                    console.log('Creating equipment:', equipmentData);
+                    
+                    // Save to database
+                    const newEquipment = await api.createEquipment(equipmentData);
+                    
+                    // Update equipment list immediately
+                    setEquipmentList(prev => [...prev, newEquipment]);
+                    
+                    // Close modal and reset form
+                    setEquipModalOpen(false);
+                    setEquipForm({ name: '', category: '', type: '', power: '', specification: '', location: '', description: '', iotDevice: '' });
+                    setIotDevices([]);
+                    
+                    console.log('Equipment created successfully');
+                  } catch (e) {
+                    showError(e);
+                  }
+                }}
+              >
+                Add Equipment
               </button>
             </div>
           </div>
