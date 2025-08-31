@@ -32,6 +32,23 @@ export class EquipmentService {
     return this.repo.find({ where: { location }, order: { createdAt: 'DESC' } });
   }
 
+  async update(id: string, dto: {
+    type: string;
+    subtype: string;
+    details: Record<string, string>;
+    location: string;
+    iotDevice?: string;
+  }) {
+    await this.repo.update(id, {
+      type: dto.type,
+      subtype: dto.subtype,
+      details: dto.details,
+      location: dto.location,
+      iotDevice: dto.iotDevice,
+    });
+    return this.repo.findOneByOrFail({ id });
+  }
+
   async delete(id: string) {
     return this.repo.delete(id);
   }

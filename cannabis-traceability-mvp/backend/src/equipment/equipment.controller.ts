@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
 import { EquipmentService } from './equipment.service';
 
 @Controller('equipment')
@@ -24,6 +24,17 @@ export class EquipmentController {
   @Get('location/:location')
   findByLocation(@Param('location') location: string) {
     return this.equipmentService.findByLocation(location);
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Body() body: {
+    type: string;
+    subtype: string;
+    details: Record<string, string>;
+    location: string;
+    iotDevice?: string;
+  }) {
+    return this.equipmentService.update(id, body);
   }
 
   @Delete(':id')

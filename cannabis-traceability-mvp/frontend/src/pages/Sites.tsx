@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import Card from '../components/Card';
 import { api } from '../lib/api';
 import { useModule } from '../context/ModuleContext';
-import { Sprout, Map as MapIcon, Layers, ChevronRight, ChevronLeft, Info, ChevronDown, Plus, MapPin, Settings } from 'lucide-react';
+import { Sprout, Map as MapIcon, Layers, ChevronRight, ChevronLeft, Info, ChevronDown, Plus, MapPin, Settings, Trash2 } from 'lucide-react';
 
 type Plant = {
   id: string;
@@ -347,6 +347,21 @@ export default function Sites() {
   const [iotScanning, setIotScanning] = useState(false);
   const [iotDevices, setIotDevices] = useState<Array<{id: string; name: string; type: string; signal: number}>>([]);
   const [structureForm, setStructureForm] = useState<{ name: string; type: 'room' | 'greenhouse'; size: string; usage: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents' | ''; tents: Array<{ widthFt: string; lengthFt: string }>; racks: Array<{ widthCm: string; lengthCm: string; shelves: string }> }>({ name: '', type: 'room', size: '', usage: '', tents: [], racks: [] });
+  
+  // Edit state variables
+  const [editingGeo, setEditingGeo] = useState<string | null>(null);
+  const [editingFacility, setEditingFacility] = useState<string | null>(null);
+  const [editingStructure, setEditingStructure] = useState<string | null>(null);
+  const [editingEquipment, setEditingEquipment] = useState<string | null>(null);
+  
+  // Delete confirmation states
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    type: 'facility' | 'structure' | 'equipment' | null;
+    id: string | null;
+    name: string;
+    impact: string;
+  }>({ type: null, id: null, name: '', impact: '' });
+  
   // Structures available for the currently selected facility
   const topsForFacility = useMemo(() => {
     if (!selectedFacility) return [] as TopLocation[];
@@ -485,24 +500,38 @@ export default function Sites() {
                 <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
                   {geos.map((g) => (
                     <li key={g.id}>
-                      <button
-                        className={`w-full text-left px-3 py-2 flex items-center justify-between ${selectedGeo === g.id ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
-                        onClick={() => { 
-                          setSelectedGeo(g.id); 
-                          setSelectedFacility(null); 
-                          setSelectedTop(null); 
-                          setSelectedSub(null); 
-                          setSelectedPlant(null); 
-                          setSelectedEquipment(null);
-                          setColumnOffset(0);
-                        }}
-                      >
-                        <div className="min-w-0">
-                          <div className="text-base text-gray-900 truncate">{g.name}</div>
-                          <div className="text-sm text-gray-500">{(facilitiesByGeo[g.id] || []).length} facilities</div>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" aria-hidden />
-                      </button>
+                      <div className={`w-full px-3 py-2 flex items-center justify-between ${selectedGeo === g.id ? 'bg-primary/5' : 'hover:bg-gray-50'}`}>
+                        <button
+                          className="flex-1 text-left flex items-center justify-between"
+                          onClick={() => { 
+                            setSelectedGeo(g.id); 
+                            setSelectedFacility(null); 
+                            setSelectedTop(null); 
+                            setSelectedSub(null); 
+                            setSelectedPlant(null); 
+                            setSelectedEquipment(null);
+                            setColumnOffset(0);
+                          }}
+                        >
+                          <div className="min-w-0">
+                            <div className="text-base text-gray-900 truncate">{g.name}</div>
+                            <div className="text-sm text-gray-500">{(facilitiesByGeo[g.id] || []).length} facilities</div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" aria-hidden />
+                        </button>
+                        <button
+                          className="ml-2 p-1 rounded-md text-gray-500 hover:text-primary hover:bg-primary/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingGeo(g.id);
+                            setGeoForm({ name: g.name, address: g.address || '' });
+                            setGeoModalOpen(true);
+                          }}
+                          title="Edit geolocation"
+                        >
+                          <Settings className="h-4 w-4" />
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -532,23 +561,56 @@ export default function Sites() {
               <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
           {facilitiesForGeo.map((f)=> (
             <li key={f.id}>
-              <button
-                className={`w-full text-left px-3 py-2 flex items-center justify-between ${selectedFacility === f.id ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
-                onClick={() => { 
-                  setSelectedFacility(f.id); 
-                  setSelectedTop(null); 
-                  setSelectedSub(null); 
-                  setSelectedPlant(null); 
-                  setSelectedEquipment(null);
-                  setColumnOffset(0);
-                }}
-              >
-                <div className="min-w-0">
-                  <div className="text-base text-gray-900 truncate">{f.name} <span className="text-sm text-gray-500">· {f.type}</span></div>
-                  <div className="text-sm text-gray-500">{structureList.filter((s:any) => s.facility === f.id).length} structures</div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" aria-hidden />
-              </button>
+              <div className={`w-full px-3 py-2 flex items-center justify-between ${selectedFacility === f.id ? 'bg-primary/5' : 'hover:bg-gray-50'}`}>
+                <button
+                  className="flex-1 text-left flex items-center justify-between"
+                  onClick={() => { 
+                    setSelectedFacility(f.id); 
+                    setSelectedTop(null); 
+                    setSelectedSub(null); 
+                    setSelectedPlant(null); 
+                    setSelectedEquipment(null);
+                    setColumnOffset(0);
+                  }}
+                >
+                  <div className="min-w-0">
+                    <div className="text-base text-gray-900 truncate">{f.name} <span className="text-sm text-gray-500">· {f.type}</span></div>
+                    <div className="text-sm text-gray-500">{structureList.filter((s:any) => s.facility === f.id).length} structures</div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" aria-hidden />
+                </button>
+                <button
+                  className="ml-2 p-1 rounded-md text-gray-500 hover:text-primary hover:bg-primary/10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingFacility(f.id);
+                    setFacilityForm({ name: f.name, type: f.type });
+                    setFacilityModalOpen(true);
+                  }}
+                  title="Edit facility"
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
+                {f.type === 'farm' && (
+                  <button
+                    className="ml-1 p-1 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const structureCount = structureList.filter((s:any) => s.facility === f.id).length;
+                      const equipmentCount = equipmentList.filter(eq => eq.location.includes(f.name)).length;
+                      const impact = structureCount > 0 
+                        ? `This will delete ${structureCount} structure${structureCount > 1 ? 's' : ''} and ${equipmentCount} equipment item${equipmentCount !== 1 ? 's' : ''}.`
+                        : equipmentCount > 0 
+                        ? `This will delete ${equipmentCount} equipment item${equipmentCount !== 1 ? 's' : ''}.`
+                        : 'This farm will be permanently deleted.';
+                      setDeleteConfirm({ type: 'facility', id: f.id, name: f.name, impact });
+                    }}
+                    title="Delete farm"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </li>
           ))}
           {facilitiesForGeo.length === 0 && (
@@ -613,33 +675,104 @@ export default function Sites() {
                       })();
                       return (
                         <li key={loc.key}>
-                          <button
-                            className={`w-full text-left px-3 py-2 flex items-center justify-between ${active ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
-                            onClick={() => {
-                              if (selectedEquipment && selectedTop === loc.key) {
-                                // If equipment is shown and clicking same structure, go back to structure view
-                                setSelectedEquipment(null);
-                                setColumnOffset(0);
-                              } else {
-                                // First click or different structure - show equipment
-                                setSelectedTop(loc.key);
-                                setSelectedSub(null);
-                                setSelectedPlant(null);
-                                setSelectedEquipment(loc.key + '-equipment'); // Mock equipment selection
-                                setColumnOffset(1); // Advance to show equipment column
-                                // Scroll to equipment column
-                                setTimeout(() => {
-                                  equipmentRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'start' });
-                                }, 50);
-                              }
-                            }}
-                          >
-                            <div className="min-w-0">
-                              <div className="text-base text-gray-900 truncate">{leftNameFromTop(loc.key, loc.type)}</div>
-                              <div className="text-sm text-gray-500">{summary}</div>
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" aria-hidden />
-                          </button>
+                          <div className={`w-full px-3 py-2 flex items-center justify-between ${active ? 'bg-primary/5' : 'hover:bg-gray-50'}`}>
+                            <button
+                              className="flex-1 text-left flex items-center justify-between"
+                              onClick={() => {
+                                if (selectedEquipment && selectedTop === loc.key) {
+                                  // If equipment is shown and clicking same structure, go back to structure view
+                                  setSelectedEquipment(null);
+                                  setColumnOffset(0);
+                                } else {
+                                  // First click or different structure - show equipment
+                                  setSelectedTop(loc.key);
+                                  setSelectedSub(null);
+                                  setSelectedPlant(null);
+                                  setSelectedEquipment(loc.key + '-equipment'); // Mock equipment selection
+                                  setColumnOffset(1); // Advance to show equipment column
+                                  // Scroll to equipment column
+                                  setTimeout(() => {
+                                    equipmentRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'start' });
+                                  }, 50);
+                                }
+                              }}
+                            >
+                              <div className="min-w-0">
+                                <div className="text-base text-gray-900 truncate">{leftNameFromTop(loc.key, loc.type)}</div>
+                                <div className="text-sm text-gray-500">{summary}</div>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" aria-hidden />
+                            </button>
+                            <button
+                              className="ml-2 p-1 rounded-md text-gray-500 hover:text-primary hover:bg-primary/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Find the original structure from the TopLocation
+                                const origStructure = structureList.find(s => {
+                                  if (s.facility !== selectedFacility) return false;
+                                  const leftBase = s.type === 'room'
+                                    ? `Indoor ${s.name.replace(/^Indoor\s+/i, '')}`
+                                    : (s.name.match(/^Greenhouse\s+/i) ? s.name : `Greenhouse ${s.name.replace(/^Greenhouse\s+/i, '')}`);
+                                  const facilityName = facilityList.find(f => f.id === selectedFacility)?.name || '';
+                                  const key = `${leftBase} - ${facilityName}`;
+                                  return key === loc.key;
+                                });
+                                if (origStructure?.id) {
+                                  setEditingStructure(origStructure.id);
+                                  setStructureForm({
+                                    name: origStructure.name,
+                                    type: origStructure.type,
+                                    size: String(origStructure.size || ''),
+                                    usage: origStructure.usage || '',
+                                    tents: (origStructure.tents || []).map(t => ({ 
+                                      widthFt: String(t.widthFt), 
+                                      lengthFt: String(t.lengthFt) 
+                                    })),
+                                    racks: (origStructure.racks || []).map(r => ({ 
+                                      widthCm: String(r.widthCm), 
+                                      lengthCm: String(r.lengthCm), 
+                                      shelves: String(r.shelves) 
+                                    }))
+                                  });
+                                  setStructureModalOpen(true);
+                                }
+                              }}
+                              title="Edit structure"
+                            >
+                              <Settings className="h-4 w-4" />
+                            </button>
+                            <button
+                              className="ml-1 p-1 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Find the original structure from the TopLocation
+                                const origStructure = structureList.find(s => {
+                                  if (s.facility !== selectedFacility) return false;
+                                  const leftBase = s.type === 'room'
+                                    ? `Indoor ${s.name.replace(/^Indoor\s+/i, '')}`
+                                    : (s.name.match(/^Greenhouse\s+/i) ? s.name : `Greenhouse ${s.name.replace(/^Greenhouse\s+/i, '')}`);
+                                  const facilityName = facilityList.find(f => f.id === selectedFacility)?.name || '';
+                                  const key = `${leftBase} - ${facilityName}`;
+                                  return key === loc.key;
+                                });
+                                if (origStructure?.id) {
+                                  const equipmentCount = equipmentList.filter(eq => eq.location.includes(leftNameFromTop(loc.key, loc.type))).length;
+                                  const impact = equipmentCount > 0 
+                                    ? `This will delete ${equipmentCount} equipment item${equipmentCount !== 1 ? 's' : ''} in this ${origStructure.type}.`
+                                    : `This ${origStructure.type} will be permanently deleted.`;
+                                  setDeleteConfirm({ 
+                                    type: 'structure', 
+                                    id: origStructure.id, 
+                                    name: leftNameFromTop(loc.key, loc.type), 
+                                    impact 
+                                  });
+                                }
+                              }}
+                              title={`Delete ${loc.type}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </li>
                       );
                     })}
@@ -692,6 +825,43 @@ export default function Sites() {
                                 {equipment.iotDevice && ` • IoT: ${equipment.iotDevice}`}
                               </div>
                             </div>
+                            <button
+                              className="ml-2 p-1 rounded-md text-gray-500 hover:text-primary hover:bg-primary/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingEquipment(equipment.id);
+                                setEquipForm({
+                                  category: equipment.type,
+                                  type: equipment.subtype,
+                                  power: equipment.details.Power || '',
+                                  specification: equipment.details.Specification || '',
+                                  name: equipment.details.Name || '',
+                                  location: equipment.location.split(' → ').slice(1).join(' → '),
+                                  description: equipment.details.Description || '',
+                                  iotDevice: equipment.iotDevice || ''
+                                });
+                                setEquipModalOpen(true);
+                              }}
+                              title="Edit equipment"
+                            >
+                              <Settings className="h-4 w-4" />
+                            </button>
+                            <button
+                              className="ml-1 p-1 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const equipmentName = equipment.details.Name || `${equipment.type} ${equipment.subtype}`;
+                                setDeleteConfirm({ 
+                                  type: 'equipment', 
+                                  id: equipment.id, 
+                                  name: equipmentName, 
+                                  impact: 'This equipment will be permanently deleted.' 
+                                });
+                              }}
+                              title="Delete equipment"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         </li>
                       ))}
@@ -719,7 +889,9 @@ export default function Sites() {
           <div className="bg-white rounded-xl shadow-xl w-[520px] max-w-[95vw] p-4">
             <div className="flex items-center gap-2 mb-3">
               <MapPin className="h-5 w-5 text-primary" aria-hidden />
-              <h3 className="text-base font-semibold text-gray-900">Add geolocation</h3>
+              <h3 className="text-base font-semibold text-gray-900">
+                {editingGeo ? 'Edit geolocation' : 'Add geolocation'}
+              </h3>
             </div>
             <div className="space-y-3">
               <div>
@@ -733,40 +905,66 @@ export default function Sites() {
                   placeholder="e.g., Munich HQ"
                 />
               </div>
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">Address</label>
-                <input className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base" value={geoForm.address} onChange={(e)=> setGeoForm(v=>({...v, address: e.target.value}))} placeholder="Street, City…"/>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">Pick on map (mock)</label>
-                <div className="h-48 rounded-md border border-gray-200 bg-gray-100 flex items-center justify-center text-sm text-gray-500">Map mock</div>
-              </div>
+              {!editingGeo && (
+                <>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">Address</label>
+                    <input className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base" value={geoForm.address} onChange={(e)=> setGeoForm(v=>({...v, address: e.target.value}))} placeholder="Street, City…"/>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">Pick on map (mock)</label>
+                    <div className="h-48 rounded-md border border-gray-200 bg-gray-100 flex items-center justify-center text-sm text-gray-500">Map mock</div>
+                  </div>
+                </>
+              )}
+              {!!editingGeo && (
+                <p className="text-xs text-gray-500">Only name can be edited after creation</p>
+              )}
             </div>
             <div className="mt-4 flex items-center justify-end gap-2">
-              <button className="px-3 py-1.5 text-sm text-gray-700" onClick={()=> setGeoModalOpen(false)}>Cancel</button>
+              <button className="px-3 py-1.5 text-sm text-gray-700" onClick={() => {
+                setGeoModalOpen(false);
+                setEditingGeo(null);
+                setGeoForm({ name: '', address: '' });
+              }}>Cancel</button>
               <button
                 className="inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50"
                 disabled={!geoForm.name.trim()}
                 onClick={async ()=>{
                   try {
-                    const created = await api.createGeo({ name: geoForm.name.trim(), address: geoForm.address.trim() });
+                    if (editingGeo) {
+                      // Update existing geolocation (only name can be changed)
+                      await api.updateGeo(editingGeo, { 
+                        name: geoForm.name.trim() 
+                      });
+                    } else {
+                      // Create new geolocation
+                      const created = await api.createGeo({ 
+                        name: geoForm.name.trim(), 
+                        address: geoForm.address.trim() 
+                      });
+                      setSelectedGeo(created.id);
+                      setSelectedFacility(null);
+                      setSelectedTop(null);
+                      setSelectedSub(null);
+                      setSelectedPlant(null);
+                      setSelectedEquipment(null);
+                      setColumnOffset(0);
+                    }
+                    
+                    // Refresh geolocations list
                     const gs = await api.getGeos();
                     setGeoList(gs);
-                    setSelectedGeo(created.id);
-                    setSelectedFacility(null);
-                    setSelectedTop(null);
-                    setSelectedSub(null);
-                    setSelectedPlant(null);
-                    setSelectedEquipment(null);
-                    setColumnOffset(0);
+                    
                     setGeoModalOpen(false);
+                    setEditingGeo(null);
                     setGeoForm({ name: '', address: '' });
                   } catch (e) {
                     showError(e);
                   }
                 }}
               >
-                Confirm
+                {editingGeo ? 'Update' : 'Confirm'}
               </button>
             </div>
           </div>
@@ -779,15 +977,25 @@ export default function Sites() {
           <div className="bg-white rounded-xl shadow-xl w-[520px] max-w-[95vw] p-4">
             <div className="flex items-center gap-2 mb-3">
               <Layers className="h-5 w-5 text-primary" aria-hidden />
-              <h3 className="text-base font-semibold text-gray-900">Add facility</h3>
+              <h3 className="text-base font-semibold text-gray-900">
+                {editingFacility ? 'Edit facility' : 'Add facility'}
+              </h3>
             </div>
             <div className="space-y-3">
               <div>
                 <label className="block text-sm text-gray-700 mb-1">Type *</label>
-                <select className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base" value={facilityForm.type} onChange={(e)=> setFacilityForm(v=>({...v, type: e.target.value as any}))}>
+                <select 
+                  className={`w-full border rounded-md px-2 py-1.5 text-base ${!!editingFacility ? 'bg-gray-50' : 'border-gray-300'}`}
+                  value={facilityForm.type} 
+                  onChange={(e)=> setFacilityForm(v=>({...v, type: e.target.value as any}))}
+                  disabled={!!editingFacility}
+                >
                   <option value="farm">Farm</option>
                   <option value="building">Building</option>
                 </select>
+                {!!editingFacility && (
+                  <p className="text-xs text-gray-500 mt-1">Type cannot be changed after creation</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm text-gray-700 mb-1">Name *</label>
@@ -802,30 +1010,50 @@ export default function Sites() {
               </div>
             </div>
             <div className="mt-4 flex items-center justify-end gap-2">
-              <button className="px-3 py-1.5 text-sm text-gray-700" onClick={()=> setFacilityModalOpen(false)}>Cancel</button>
+              <button className="px-3 py-1.5 text-sm text-gray-700" onClick={() => {
+                setFacilityModalOpen(false);
+                setEditingFacility(null);
+                setFacilityForm({ name: '', type: 'farm' });
+              }}>Cancel</button>
               <button
                 className="inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50"
                 disabled={!selectedGeo || !facilityForm.name.trim()}
                 onClick={async ()=>{
                   if (!selectedGeo) return;
                   try {
-                    const created = await api.createFacility({ geoId: selectedGeo, name: facilityForm.name.trim(), type: facilityForm.type });
+                    if (editingFacility) {
+                      // Update existing facility (only name can be changed)
+                      await api.updateFacility(editingFacility, { 
+                        name: facilityForm.name.trim()
+                      });
+                    } else {
+                      // Create new facility
+                      const created = await api.createFacility({ 
+                        geoId: selectedGeo, 
+                        name: facilityForm.name.trim(), 
+                        type: facilityForm.type 
+                      });
+                      setSelectedFacility(created.id);
+                      setSelectedTop(null);
+                      setSelectedSub(null);
+                      setSelectedPlant(null);
+                      setSelectedEquipment(null);
+                      setColumnOffset(0);
+                    }
+                    
+                    // Refresh facilities list
                     const fs = await api.getFacilities(selectedGeo);
                     setFacilityList(fs);
-                    setSelectedFacility(created.id);
-                    setSelectedTop(null);
-                    setSelectedSub(null);
-                    setSelectedPlant(null);
-                    setSelectedEquipment(null);
-                    setColumnOffset(0);
+                    
                     setFacilityModalOpen(false);
+                    setEditingFacility(null);
                     setFacilityForm({ name: '', type: 'farm' });
                   } catch (e) {
                     showError(e);
                   }
                 }}
               >
-                Confirm
+                {editingFacility ? 'Update' : 'Confirm'}
               </button>
             </div>
           </div>
@@ -838,7 +1066,9 @@ export default function Sites() {
           <div className="bg-white rounded-xl shadow-xl w-[520px] max-w-[95vw] p-4">
             <div className="flex items-center gap-2 mb-3">
               <Layers className="h-5 w-5 text-primary" aria-hidden />
-              <h3 className="text-base font-semibold text-gray-900">Add structure</h3>
+              <h3 className="text-base font-semibold text-gray-900">
+                {editingStructure ? 'Edit structure' : 'Add structure'}
+              </h3>
             </div>
             <div className="space-y-3">
               {(() => {
@@ -881,22 +1111,36 @@ export default function Sites() {
                 })()}
               </div>
               {/* Size first (always above Usage) */}
-              <div>
-                <label className="block text-sm text-gray-700 mb-1">Size (m²) *</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  className={`w-full border rounded-md px-2 py-1.5 text-base ${
-                    !structureForm.size || isNaN(Number(structureForm.size)) || Number(structureForm.size) <= 0
-                      ? 'border-red-300 bg-red-50' 
-                      : 'border-gray-300'
-                  }`}
-                  value={structureForm.size}
-                  onChange={(e)=> setStructureForm((v)=> ({ ...v, size: e.target.value }))}
-                  placeholder="e.g., 120"
-                />
-              </div>
+              {!editingStructure && (
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Size (m²) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                      !structureForm.size || isNaN(Number(structureForm.size)) || Number(structureForm.size) <= 0
+                        ? 'border-red-300 bg-red-50' 
+                        : 'border-gray-300'
+                    }`}
+                    value={structureForm.size}
+                    onChange={(e)=> setStructureForm((v)=> ({ ...v, size: e.target.value }))}
+                    placeholder="e.g., 120"
+                  />
+                </div>
+              )}
+              {!!editingStructure && (
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Size (m²)</label>
+                  <input
+                    type="text"
+                    className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-base bg-gray-50"
+                    value={structureForm.size}
+                    disabled
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Size cannot be changed after creation</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm text-gray-700 mb-1">Usage *</label>
                 {(() => {
@@ -931,7 +1175,7 @@ export default function Sites() {
               {(() => {
                 const f = facilityList.find((x)=> x.id === selectedFacility);
                 const allowed: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
-                if (allowed !== 'room' || structureForm.usage !== 'Racks/Tents') return null;
+                if (allowed !== 'room' || structureForm.usage !== 'Racks/Tents' || !!editingStructure) return null;
                 // Helper to compute total tent+rack area in m^2
                 const ft2m = (ft: number) => ft * 0.3048;
                 const tentAreaM2 = (w: number, l: number) => ft2m(w) * ft2m(l);
@@ -1055,7 +1299,11 @@ export default function Sites() {
               
             </div>
             <div className="mt-4 flex items-center justify-end gap-2">
-              <button className="px-3 py-1.5 text-sm text-gray-700" onClick={()=> setStructureModalOpen(false)}>Cancel</button>
+              <button className="px-3 py-1.5 text-sm text-gray-700" onClick={() => {
+                setStructureModalOpen(false);
+                setEditingStructure(null);
+                setStructureForm({ name: '', type: 'room', size: '', usage: '' as any, tents: [], racks: [] });
+              }}>Cancel</button>
               <button
                 className="inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50"
                 disabled={!structureForm.name.trim() || !structureForm.size || isNaN(Number(structureForm.size)) || Number(structureForm.size) <= 0 || !structureForm.usage || (structureForm.usage === 'Racks/Tents' && (()=>{
@@ -1076,17 +1324,43 @@ export default function Sites() {
                     const sizeNum = Number(structureForm.size);
                     const tents = structureForm.usage === 'Racks/Tents' ? (structureForm.tents||[]).map(t => ({ widthFt: Number(t.widthFt||0), lengthFt: Number(t.lengthFt||0) })) : undefined;
                     const racks = structureForm.usage === 'Racks/Tents' ? (structureForm.racks||[]).map(r => ({ widthCm: Number(r.widthCm||0), lengthCm: Number(r.lengthCm||0), shelves: Number(r.shelves||0) })) : undefined;
-                    await api.createStructure({ facilityId: selectedFacility, name, type, size: isNaN(sizeNum) ? 0 : sizeNum, usage: structureForm.usage as any, tents, racks });
+                    
+                    if (editingStructure) {
+                      // Update existing structure
+                      await api.updateStructure(editingStructure, { 
+                        name, 
+                        type, 
+                        size: isNaN(sizeNum) ? 0 : sizeNum, 
+                        usage: structureForm.usage as any, 
+                        tents, 
+                        racks 
+                      });
+                    } else {
+                      // Create new structure  
+                      await api.createStructure({ 
+                        facilityId: selectedFacility, 
+                        name, 
+                        type, 
+                        size: isNaN(sizeNum) ? 0 : sizeNum, 
+                        usage: structureForm.usage as any, 
+                        tents, 
+                        racks 
+                      });
+                    }
+                    
+                    // Refresh structures list
                     const list = await api.getStructures(selectedFacility);
                     setStructureList(list.map((s: any) => ({ id: s.id, facility: s.facility?.id, name: s.name, type: s.type, size: s.size, usage: s.usage, tents: s.tents, racks: s.racks })));
+                    
                     setStructureModalOpen(false);
+                    setEditingStructure(null);
                     setStructureForm({ name: '', type: 'room', size: '', usage: '' as any, tents: [], racks: [] });
                   } catch (e) {
                     showError(e);
                   }
                 }}
               >
-                Confirm
+                {editingStructure ? 'Update' : 'Confirm'}
               </button>
             </div>
           </div>
@@ -1099,7 +1373,9 @@ export default function Sites() {
           <div className="bg-white rounded-xl shadow-xl w-[640px] max-w-[95vw] p-4">
             <div className="flex items-center gap-2 mb-3">
               <Settings className="h-5 w-5 text-primary" aria-hidden />
-              <h3 className="text-base font-semibold text-gray-900">Add equipment to {selectedTop}</h3>
+              <h3 className="text-base font-semibold text-gray-900">
+                {editingEquipment ? `Edit equipment in ${selectedTop}` : `Add equipment to ${selectedTop}`}
+              </h3>
             </div>
             <div className="space-y-3">
               {/* Equipment Category */}
@@ -1403,7 +1679,12 @@ export default function Sites() {
             <div className="mt-4 flex items-center justify-end gap-2">
               <button 
                 className="px-3 py-1.5 text-sm text-gray-700" 
-                onClick={() => setEquipModalOpen(false)}
+                onClick={() => {
+                  setEquipModalOpen(false);
+                  setEditingEquipment(null);
+                  setEquipForm({ name: '', category: '', type: '', power: '', specification: '', location: '', description: '', iotDevice: '' });
+                  setIotDevices([]);
+                }}
               >
                 Cancel
               </button>
@@ -1417,11 +1698,11 @@ export default function Sites() {
                   !equipForm.power ? "Power specification is required" :
                   !equipForm.specification ? "Specification details are required" :
                   !equipForm.location ? "Location is required" :
-                  "Add equipment"
+                  editingEquipment ? "Update equipment" : "Add equipment"
                 }
                 onClick={async () => {
                   try {
-                    // Create equipment in database
+                    // Create equipment data
                     const equipmentData = {
                       type: equipForm.category,
                       subtype: equipForm.type,
@@ -1435,26 +1716,104 @@ export default function Sites() {
                       iotDevice: equipForm.iotDevice || undefined
                     };
                     
-                    console.log('Creating equipment:', equipmentData);
+                    console.log(editingEquipment ? 'Updating equipment:' : 'Creating equipment:', equipmentData);
                     
-                    // Save to database
-                    const newEquipment = await api.createEquipment(equipmentData);
-                    
-                    // Update equipment list immediately
-                    setEquipmentList(prev => [...prev, newEquipment]);
+                    if (editingEquipment) {
+                      // Update existing equipment
+                      const updatedEquipment = await api.updateEquipment(editingEquipment, equipmentData);
+                      // Update equipment list 
+                      setEquipmentList(prev => prev.map(eq => eq.id === editingEquipment ? updatedEquipment : eq));
+                    } else {
+                      // Create new equipment
+                      const newEquipment = await api.createEquipment(equipmentData);
+                      // Update equipment list immediately
+                      setEquipmentList(prev => [...prev, newEquipment]);
+                    }
                     
                     // Close modal and reset form
                     setEquipModalOpen(false);
+                    setEditingEquipment(null);
                     setEquipForm({ name: '', category: '', type: '', power: '', specification: '', location: '', description: '', iotDevice: '' });
                     setIotDevices([]);
                     
-                    console.log('Equipment created successfully');
+                    console.log(editingEquipment ? 'Equipment updated successfully' : 'Equipment created successfully');
                   } catch (e) {
                     showError(e);
                   }
                 }}
               >
-                Add Equipment
+                {editingEquipment ? 'Update Equipment' : 'Add Equipment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm.type && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-[520px] max-w-[95vw] p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Trash2 className="h-5 w-5 text-red-600" aria-hidden />
+              <h3 className="text-base font-semibold text-gray-900">Delete {deleteConfirm.type}</h3>
+            </div>
+            <div className="space-y-3">
+              <p className="text-sm text-gray-700">
+                Are you sure you want to delete <strong>{deleteConfirm.name}</strong>?
+              </p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                <p className="text-sm text-yellow-800">
+                  <strong>Warning:</strong> {deleteConfirm.impact}
+                </p>
+              </div>
+              <p className="text-xs text-gray-500">
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button 
+                className="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50" 
+                onClick={() => setDeleteConfirm({ type: null, id: null, name: '', impact: '' })}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm text-white bg-red-600 rounded-md hover:bg-red-700"
+                onClick={async () => {
+                  try {
+                    if (deleteConfirm.type === 'facility' && deleteConfirm.id) {
+                      await api.deleteFacility(deleteConfirm.id);
+                      const fs = await api.getFacilities(selectedGeo!);
+                      setFacilityList(fs);
+                      if (selectedFacility === deleteConfirm.id) {
+                        setSelectedFacility(null);
+                        setSelectedTop(null);
+                        setSelectedSub(null);
+                        setSelectedPlant(null);
+                        setSelectedEquipment(null);
+                      }
+                    } else if (deleteConfirm.type === 'structure' && deleteConfirm.id) {
+                      await api.deleteStructure(deleteConfirm.id);
+                      if (selectedFacility) {
+                        const list = await api.getStructures(selectedFacility);
+                        setStructureList(list.map((s: any) => ({ id: s.id, facility: s.facility?.id, name: s.name, type: s.type, size: s.size, usage: s.usage, tents: s.tents, racks: s.racks })));
+                      }
+                      setSelectedTop(null);
+                      setSelectedSub(null);
+                      setSelectedPlant(null);
+                      setSelectedEquipment(null);
+                    } else if (deleteConfirm.type === 'equipment' && deleteConfirm.id) {
+                      await api.deleteEquipment(deleteConfirm.id);
+                      setEquipmentList(prev => prev.filter(eq => eq.id !== deleteConfirm.id));
+                    }
+                    
+                    setDeleteConfirm({ type: null, id: null, name: '', impact: '' });
+                  } catch (e) {
+                    showError(e);
+                  }
+                }}
+              >
+                Delete {deleteConfirm.type}
               </button>
             </div>
           </div>

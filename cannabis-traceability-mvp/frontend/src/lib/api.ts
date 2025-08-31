@@ -101,6 +101,13 @@ export const api = {
       body: JSON.stringify(data),
     }).then((r) => r.json());
   },
+  updateGeo(id: string, data: { name: string; address?: string; lat?: number; lng?: number }) {
+  return fetchJson(`/locations/geos/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then((r) => r.json());
+  },
   deleteGeo(id: string) {
   return fetchJson(`/locations/geos/${id}`, { method: 'DELETE' });
   },
@@ -114,6 +121,16 @@ export const api = {
       body: JSON.stringify(data),
     }).then((r) => r.json());
   },
+  updateFacility(id: string, data: { name: string; type?: 'farm' | 'building' }) {
+  return fetchJson(`/locations/facilities/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then((r) => r.json());
+  },
+  deleteFacility(id: string) {
+  return fetchJson(`/locations/facilities/${id}`, { method: 'DELETE' });
+  },
   getStructures(facilityId: string) {
   return fetchJson(`/locations/structures/${facilityId}`).then((r) => r.json());
   },
@@ -123,6 +140,16 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }).then((r) => r.json());
+  },
+  updateStructure(id: string, data: { name: string; type: 'room' | 'greenhouse'; size?: number; beds?: number; usage: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents'; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> }) {
+  return fetchJson(`/locations/structures/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then((r) => r.json());
+  },
+  deleteStructure(id: string) {
+  return fetchJson(`/locations/structures/${id}`, { method: 'DELETE' });
   },
   resetLocations() {
   return fetchJson(`/locations/reset`, { method: 'POST' });
@@ -134,6 +161,13 @@ export const api = {
   createEquipment(data: { type: string; subtype: string; details: Record<string, string>; location: string; iotDevice?: string }) {
   return fetchJson(`/equipment`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then((r) => r.json());
+  },
+  updateEquipment(id: string, data: { type: string; subtype: string; details: Record<string, string>; location: string; iotDevice?: string }) {
+  return fetchJson(`/equipment/${id}`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }).then((r) => r.json());

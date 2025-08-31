@@ -19,6 +19,10 @@ export class LocationsService {
     const g = this.geos.create({ name: dto.name, address: dto.address ?? null, lat: dto.lat ?? null, lng: dto.lng ?? null });
     return this.geos.save(g);
   }
+  async updateGeo(id: string, dto: { name: string; address?: string; lat?: number; lng?: number }) {
+    await this.geos.update(id, { name: dto.name, address: dto.address ?? null, lat: dto.lat ?? null, lng: dto.lng ?? null });
+    return this.geos.findOneByOrFail({ id });
+  }
   async deleteGeo(id: string) { await this.geos.delete(id); }
 
   // Facilities
@@ -27,6 +31,13 @@ export class LocationsService {
     const geo = await this.geos.findOneByOrFail({ id: dto.geoId });
     const f = this.facilities.create({ name: dto.name, type: dto.type, geo });
     return this.facilities.save(f);
+  }
+  async updateFacility(id: string, dto: { name: string; type?: FacilityType }) {
+    // Only update the name if type is not provided (edit mode)
+    const updateData: any = { name: dto.name };
+    if (dto.type) updateData.type = dto.type;
+    await this.facilities.update(id, updateData);
+    return this.facilities.findOneByOrFail({ id });
   }
   async deleteFacility(id: string) { await this.facilities.delete(id); }
 
@@ -54,6 +65,27 @@ export class LocationsService {
     }
     const s = this.structures.create({ name: dto.name, type: dto.type, size: dto.size ?? null, beds: dto.beds ?? null, usage: dto.usage, facility, tents, racks });
     return this.structures.save(s);
+  }
+  async updateStructure(id: string, dto: { name: string; type: StructureType; size?: number; beds?: number; usage: StructureUsage; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> }) {
+    // Apply same validation logic as create
+    let tents = dto.tents ?? null;
+    let racks = dto.racks ?? null;
+    const isCombo = dto.usage === 'Racks/Tents';
+    if (dto.usage === 'Tents' || isCombo) {
+      if (dto.type !== 'room') throw new Error('Racks/Tents usage is only allowed for rooms');
+      const roomM2 = dto.size ?? 0;
+      if (!roomM2 || roomM2 <= 0) throw new Error('Room size (m²) is required for this usage');
+      const ftToM = (ft: number) => ft * 0.3048;
+      const cmToM = (cm: number) => cm / 100;
+      const tentArea = (tents || []).reduce((sum, t) => sum + (ftToM(Number(t.widthFt||0)) * ftToM(Number(t.lengthFt||0))), 0);
+      const rackArea = (racks || []).reduce((sum, r) => sum + (cmToM(Number(r.widthCm||0)) * cmToM(Number(r.lengthCm||0))), 0);
+      if (tentArea + rackArea > roomM2 + 1e-6) throw new Error('Total tents+racks area exceeds room size');
+    } else {
+      racks = null;
+      tents = null;
+    }
+    await this.structures.update(id, { name: dto.name, type: dto.type, size: dto.size ?? null, beds: dto.beds ?? null, usage: dto.usage, tents, racks });
+    return this.structures.findOne({ where: { id }, relations: ['facility'] });
   }
   async deleteStructure(id: string) { await this.structures.delete(id); }
 
