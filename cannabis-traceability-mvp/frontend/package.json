@@ -4,9 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --port 3000",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview --port 3000"
+    "dev": "vite --port 3000 --force --clearScreen false --host",
+    "dev:debug": "rm -rf node_modules/.vite && rm -rf dist && rm -f tsconfig.tsbuildinfo && vite --port 3000 --force --clearScreen false --host --debug",
+    "dev:clean": "rm -rf node_modules/.vite && rm -rf dist && vite --port 3000 --force --clearScreen false --host",
+    "build": "tsc && vite build",
+    "build:clean": "rm -rf node_modules/.vite && rm -rf dist && rm -f tsconfig.tsbuildinfo && tsc && vite build",
+    "preview": "vite preview --port 3000",
+    "clean": "rm -rf node_modules/.vite && rm -rf dist && rm -f tsconfig.tsbuildinfo",
+    "reset": "npm run clean && npm install"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.10",

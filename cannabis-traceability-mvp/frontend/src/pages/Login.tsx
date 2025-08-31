@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
   const { login, verify2FA, is2FARequired } = useAuth();
-  const [username, setUsername] = useState('Daniel.Veselski');
-  const [password, setPassword] = useState('pass123');
+  const [username, setUsername] = useState('Farmer');
+  const [password, setPassword] = useState('1234');
   const [code, setCode] = useState('');
   const navigate = useNavigate();
 
@@ -47,7 +47,7 @@ export default function Login() {
           </form>
         )}
 
-  <p className="text-xs text-gray-500 mt-4">Use Daniel.Veselski / pass123. 2FA accepts any 6 digits.</p>
+  <p className="text-xs text-gray-500 mt-4">Use Farmer / 1234. 2FA accepts any 6 digits.</p>
       </div>
     </div>
   );

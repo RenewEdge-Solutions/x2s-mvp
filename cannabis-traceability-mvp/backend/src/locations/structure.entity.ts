@@ -22,6 +22,10 @@ export class Structure {
   @Column({ type: 'double precision', nullable: true })
   size?: number | null;
 
+  // Number of beds for greenhouse structures
+  @Column({ type: 'integer', nullable: true })
+  beds?: number | null;
+
   // Array of tents for rooms when usage === 'Tents'; width/length in feet
   @Column({ type: 'jsonb', nullable: true })
   tents?: Array<{ widthFt: number; lengthFt: number }>|null;

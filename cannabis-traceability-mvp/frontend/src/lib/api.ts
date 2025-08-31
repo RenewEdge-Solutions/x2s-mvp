@@ -117,7 +117,7 @@ export const api = {
   getStructures(facilityId: string) {
   return fetchJson(`/locations/structures/${facilityId}`).then((r) => r.json());
   },
-  createStructure(data: { facilityId: string; name: string; type: 'room' | 'greenhouse'; size?: number; usage: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents'; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> }) {
+  createStructure(data: { facilityId: string; name: string; type: 'room' | 'greenhouse'; size?: number; beds?: number; usage: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents'; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> }) {
   return fetchJson(`/locations/structures`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -126,5 +126,22 @@ export const api = {
   },
   resetLocations() {
   return fetchJson(`/locations/reset`, { method: 'POST' });
+  },
+  // Equipment
+  getEquipment() {
+  return fetchJson(`/equipment`).then((r) => r.json());
+  },
+  createEquipment(data: { type: string; subtype: string; details: Record<string, string>; location: string; iotDevice?: string }) {
+  return fetchJson(`/equipment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then((r) => r.json());
+  },
+  getEquipmentByLocation(location: string) {
+  return fetchJson(`/equipment/location/${encodeURIComponent(location)}`).then((r) => r.json());
+  },
+  deleteEquipment(id: string) {
+  return fetchJson(`/equipment/${id}`, { method: 'DELETE' });
   },
 };

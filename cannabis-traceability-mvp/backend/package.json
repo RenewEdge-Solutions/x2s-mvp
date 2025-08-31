@@ -5,13 +5,18 @@
   
   "scripts": {
     "start": "nest start",
-    "start:dev": "nest start --watch",
+    "start:dev": "nest start --watch --debug",
+    "start:debug": "nest start --debug --watch --preserveWatchOutput",
+    "start:hot": "nest start --watch --debug --preserveWatchOutput --maxListeners 15",
     "build": "nest build",
-  "seed:ts": "ts-node -r tsconfig-paths/register src/seed.ts",
-  "seed": "node dist/seed.js",
-  "cleanup:ts": "ts-node -r tsconfig-paths/register src/cleanup.ts",
-  "cleanup": "node dist/cleanup.js",
-    "format": "prettier --write \"src/**/*.ts\""
+    "build:clean": "rm -rf dist && rm -f tsconfig.tsbuildinfo && nest build",
+    "seed:ts": "ts-node -r tsconfig-paths/register src/seed.ts",
+    "seed": "node dist/seed.js",
+    "cleanup:ts": "ts-node -r tsconfig-paths/register src/cleanup.ts",
+    "cleanup": "node dist/cleanup.js",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "clean": "rm -rf dist && rm -f tsconfig.tsbuildinfo",
+    "reset": "npm run clean && npm install"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

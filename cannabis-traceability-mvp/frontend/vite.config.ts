@@ -3,21 +3,55 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  // Use runtime VITE_API_URL (from Docker) or .env, else default to http://localhost:3001
+  // Backend should always be on port 3001 as per README
   const target = process.env.VITE_API_URL || env.VITE_API_URL || 'http://localhost:3001';
   return {
-    plugins: [react()],
+    plugins: [
+      react({
+        jsxRuntime: 'automatic'
+      })
+    ],
+    resolve: {
+      alias: {
+        'react': 'react',
+        'react-dom': 'react-dom'
+      }
+    },
+    optimizeDeps: {
+      include: [
+        'react', 
+        'react-dom', 
+        'react/jsx-runtime'
+      ],
+      exclude: ['lucide-react']
+    },
     server: {
       host: true,
       port: 3000,
+      strictPort: true,
+      hmr: {
+        overlay: true,
+        port: 24678
+      },
       proxy: {
         '/api': {
           target,
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path.replace(/^\/api/, ''),
-        },
-      },
+          rewrite: (path) => path.replace(/^\/api/, '')
+        }
+      }
     },
+    build: {
+      sourcemap: mode === 'development',
+      minify: mode === 'production',
+      rollupOptions: {
+        output: {
+          manualChunks: undefined
+        }
+      }
+    },
+    clearScreen: false,
+    logLevel: 'info'
   };
 });

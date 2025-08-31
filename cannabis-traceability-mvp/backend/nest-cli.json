@@ -1,4 +1,17 @@
 {
   "collection": "@nestjs/schematics",
-  "sourceRoot": "src"
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": false,
+    "watchMode": true,
+    "preserveWatchOutput": true,
+    "typeCheck": false,
+    "plugins": [],
+    "assets": [],
+    "watchAssets": true
+  },
+  "generateOptions": {
+    "spec": true,
+    "flat": false
+  }
 }

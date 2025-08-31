@@ -12,10 +12,15 @@ import Wizard from './pages/Wizard';
 import LifecycleExplorer from './pages/LifecycleExplorer';
 import Calendar from './pages/Calendar';
 import Inventory from './pages/Inventory';
-import Plants from './pages/Plants';
+import Sites from './pages/Sites';
 import BlockchainView from './pages/BlockchainView';
 import Profile from './pages/Profile';
 import Reports from './pages/Reports';
+import { enableDevTools, setupErrorHandling } from './lib/devtools';
+
+// Enable development tools
+enableDevTools();
+setupErrorHandling();
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -41,8 +46,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                       <Route path="/wizard" element={<Wizard />} />
                       <Route path="/lifecycle" element={<LifecycleExplorer />} />
                       <Route path="/calendar" element={<Calendar />} />
-                      <Route path="/production" element={<Navigate to="/facilities" replace />} />
-                      <Route path="/facilities" element={<Plants />} />
+                      <Route path="/production" element={<Navigate to="/sites" replace />} />
+                      <Route path="/facilities" element={<Navigate to="/sites" replace />} />
+                      <Route path="/sites" element={<Sites />} />
                       <Route path="/inventory" element={<Inventory />} />
                       <Route path="/reports" element={<Reports />} />
                       <Route path="/integrity" element={<BlockchainView />} />

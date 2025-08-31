@@ -10,7 +10,22 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "strict": true,
-  "types": ["vite/client", "google.maps"]
+    "noEmit": true,
+    "types": ["vite/client", "google.maps"],
+    
+    // Enhanced debugging options
+    "sourceMap": true,
+    "inlineSourceMap": false,
+    "inlineSources": false,
+    "declaration": false,
+    "removeComments": false,
+    "preserveConstEnums": true,
+    "forceConsistentCasingInFileNames": true,
+    
+    // Disable incremental compilation for fresh builds
+    "incremental": false,
+    "tsBuildInfoFile": null
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }

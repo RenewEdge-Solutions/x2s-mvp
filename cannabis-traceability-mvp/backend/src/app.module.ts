@@ -14,11 +14,13 @@ import { LocationsModule } from './locations/locations.module';
 import { Geolocation } from './locations/geolocation.entity';
 import { Facility } from './locations/facility.entity';
 import { Structure } from './locations/structure.entity';
+import { EquipmentModule } from './equipment/equipment.module';
+import { Equipment } from './equipment/equipment.entity';
 
 @Module({
   imports: [
   TypeOrmModule.forRootAsync(ormConfig),
-  TypeOrmModule.forFeature([Plant, Harvest, Geolocation, Facility, Structure]),
+  TypeOrmModule.forFeature([Plant, Harvest, Geolocation, Facility, Structure, Equipment]),
     AuthModule,
     UsersModule,
     PlantsModule,
@@ -27,6 +29,7 @@ import { Structure } from './locations/structure.entity';
   IntegrityModule,
   ReportsModule,
   LocationsModule,
+  EquipmentModule,
   ],
 })
 export class AppModule {}

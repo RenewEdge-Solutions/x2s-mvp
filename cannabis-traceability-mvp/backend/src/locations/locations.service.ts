@@ -32,7 +32,7 @@ export class LocationsService {
 
   // Structures
   listStructures(facilityId: string) { return this.structures.find({ where: { facility: { id: facilityId } as any }, order: { name: 'ASC' }, relations: ['facility'] }); }
-  async createStructure(dto: { facilityId: string; name: string; type: StructureType; size?: number; usage: StructureUsage; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> }) {
+  async createStructure(dto: { facilityId: string; name: string; type: StructureType; size?: number; beds?: number; usage: StructureUsage; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> }) {
     const facility = await this.facilities.findOneByOrFail({ id: dto.facilityId });
     // capacity guard for combined racks/tents usage and legacy tents-only
     let tents = dto.tents ?? null;
@@ -52,7 +52,7 @@ export class LocationsService {
       racks = null;
       tents = null;
     }
-    const s = this.structures.create({ name: dto.name, type: dto.type, size: dto.size ?? null, usage: dto.usage, facility, tents, racks });
+    const s = this.structures.create({ name: dto.name, type: dto.type, size: dto.size ?? null, beds: dto.beds ?? null, usage: dto.usage, facility, tents, racks });
     return this.structures.save(s);
   }
   async deleteStructure(id: string) { await this.structures.delete(id); }

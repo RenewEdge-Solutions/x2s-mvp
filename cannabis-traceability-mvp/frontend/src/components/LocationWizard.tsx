@@ -28,7 +28,7 @@ const DEVICE_SCHEMAS: Record<DeviceType, DeviceSchema> = {
     fields: [
       { key: 'technology', label: 'Technology', input: 'select', options: ['LED', 'HPS', 'CMH', 'Fluorescent'] },
       { key: 'powerW', label: 'Power (W)', input: 'number' },
-      { key: 'spectrum', label: 'Spectrum', input: 'select', options: ['Full', 'Veg', 'Fruiting'] },
+      { key: 'spectrum', label: 'Spectrum', input: 'select', options: ['Full', 'Vegetative', 'Flower'] },
     ],
   },
   Fan: {

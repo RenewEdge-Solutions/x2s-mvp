@@ -7,6 +7,7 @@ import { ReportEntity } from '../reports/report.entity';
 import { Geolocation } from '../locations/geolocation.entity';
 import { Facility } from '../locations/facility.entity';
 import { Structure } from '../locations/structure.entity';
+import { Equipment } from '../equipment/equipment.entity';
 
 const ormConfig: TypeOrmModuleAsyncOptions = {
   imports: [
@@ -28,7 +29,7 @@ const ormConfig: TypeOrmModuleAsyncOptions = {
       username,
       password,
       database,
-  entities: [Plant, Harvest, UserEntity, ReportEntity, Geolocation, Facility, Structure],
+  entities: [Plant, Harvest, UserEntity, ReportEntity, Geolocation, Facility, Structure, Equipment],
       synchronize: true,
       logging: false,
     } as const;

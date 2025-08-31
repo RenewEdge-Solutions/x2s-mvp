@@ -1,0 +1,33 @@
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { EquipmentService } from './equipment.service';
+
+@Controller('equipment')
+export class EquipmentController {
+  constructor(private readonly equipmentService: EquipmentService) {}
+
+  @Post()
+  create(@Body() body: {
+    type: string;
+    subtype: string;
+    details: Record<string, string>;
+    location: string;
+    iotDevice?: string;
+  }) {
+    return this.equipmentService.create(body);
+  }
+
+  @Get()
+  list() {
+    return this.equipmentService.findAll();
+  }
+
+  @Get('location/:location')
+  findByLocation(@Param('location') location: string) {
+    return this.equipmentService.findByLocation(location);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.equipmentService.delete(id);
+  }
+}
