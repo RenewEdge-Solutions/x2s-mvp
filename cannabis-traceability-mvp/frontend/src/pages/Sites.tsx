@@ -303,7 +303,7 @@ export default function Sites() {
   const [facilityModalOpen, setFacilityModalOpen] = useState(false);
   const [facilityForm, setFacilityForm] = useState<{ name: string; type: 'farm' | 'building' }>({ name: '', type: 'farm' });
   // Structures (per facility)
-  type Structure = { id?: string; facility: string; type: 'room' | 'greenhouse'; name: string; size?: number; usage?: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents'; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> };
+  type Structure = { id?: string; facility: string; type: 'room' | 'greenhouse'; name: string; size?: number; beds?: number; usage?: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents'; tents?: Array<{ widthFt: number; lengthFt: number }>; racks?: Array<{ widthCm: number; lengthCm: number; shelves: number }> };
   const loadStructures = (): Structure[] => {
     try { return JSON.parse(localStorage.getItem('mvp.structures') || '[]'); } catch { return []; }
   };
@@ -346,7 +346,7 @@ export default function Sites() {
   });
   const [iotScanning, setIotScanning] = useState(false);
   const [iotDevices, setIotDevices] = useState<Array<{id: string; name: string; type: string; signal: number}>>([]);
-  const [structureForm, setStructureForm] = useState<{ name: string; type: 'room' | 'greenhouse'; size: string; usage: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents' | ''; tents: Array<{ widthFt: string; lengthFt: string }>; racks: Array<{ widthCm: string; lengthCm: string; shelves: string }> }>({ name: '', type: 'room', size: '', usage: '', tents: [], racks: [] });
+  const [structureForm, setStructureForm] = useState<{ name: string; type: 'room' | 'greenhouse'; size: string; beds: string; usage: 'Vegetative' | 'Flowering' | 'Drying' | 'Storage' | 'Tents' | 'Racks/Tents' | ''; tents: Array<{ widthFt: string; lengthFt: string }>; racks: Array<{ widthCm: string; lengthCm: string; shelves: string }> }>({ name: '', type: 'room', size: '', beds: '', usage: '', tents: [], racks: [] });
   
   // Edit state variables
   const [editingGeo, setEditingGeo] = useState<string | null>(null);
@@ -591,25 +591,6 @@ export default function Sites() {
                 >
                   <Settings className="h-4 w-4" />
                 </button>
-                {f.type === 'farm' && (
-                  <button
-                    className="ml-1 p-1 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const structureCount = structureList.filter((s:any) => s.facility === f.id).length;
-                      const equipmentCount = equipmentList.filter(eq => eq.location.includes(f.name)).length;
-                      const impact = structureCount > 0 
-                        ? `This will delete ${structureCount} structure${structureCount > 1 ? 's' : ''} and ${equipmentCount} equipment item${equipmentCount !== 1 ? 's' : ''}.`
-                        : equipmentCount > 0 
-                        ? `This will delete ${equipmentCount} equipment item${equipmentCount !== 1 ? 's' : ''}.`
-                        : 'This farm will be permanently deleted.';
-                      setDeleteConfirm({ type: 'facility', id: f.id, name: f.name, impact });
-                    }}
-                    title="Delete farm"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
               </div>
             </li>
           ))}
@@ -633,7 +614,7 @@ export default function Sites() {
                   onClick={() => {
                     const f = facilityList.find((x)=> x.id === selectedFacility);
                     const defType: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
-                    setStructureForm({ name: '', type: defType, size: '', usage: '' as any, tents: [], racks: [] });
+                    setStructureForm({ name: '', type: defType, size: '', beds: '', usage: '' as any, tents: [], racks: [] });
                     setStructureModalOpen(true);
                   }}
                 >
@@ -719,10 +700,15 @@ export default function Sites() {
                                 });
                                 if (origStructure?.id) {
                                   setEditingStructure(origStructure.id);
+                                  
+                                  // For existing greenhouses without beds data, provide a default value
+                                  const defaultBeds = origStructure.type === 'greenhouse' && !origStructure.beds ? '4' : String(origStructure.beds || '');
+                                  
                                   setStructureForm({
                                     name: origStructure.name,
                                     type: origStructure.type,
                                     size: String(origStructure.size || ''),
+                                    beds: defaultBeds,
                                     usage: origStructure.usage || '',
                                     tents: (origStructure.tents || []).map(t => ({ 
                                       widthFt: String(t.widthFt), 
@@ -1141,6 +1127,48 @@ export default function Sites() {
                   <p className="text-xs text-gray-500 mt-1">Size cannot be changed after creation</p>
                 </div>
               )}
+              {/* Beds field for greenhouses */}
+              {(() => {
+                const f = facilityList.find((x)=> x.id === selectedFacility);
+                const allowed: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
+                if (allowed !== 'greenhouse') return null;
+                
+                return !editingStructure ? (
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">Number of beds *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                        !structureForm.beds || isNaN(Number(structureForm.beds)) || Number(structureForm.beds) <= 0
+                          ? 'border-red-300 bg-red-50' 
+                          : 'border-gray-300'
+                      }`}
+                      value={structureForm.beds}
+                      onChange={(e)=> setStructureForm((v)=> ({ ...v, beds: e.target.value }))}
+                      placeholder="e.g., 4"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">Number of beds *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      className={`w-full border rounded-md px-2 py-1.5 text-base ${
+                        !structureForm.beds || isNaN(Number(structureForm.beds)) || Number(structureForm.beds) <= 0
+                          ? 'border-red-300 bg-red-50' 
+                          : 'border-gray-300'
+                      }`}
+                      value={structureForm.beds}
+                      onChange={(e)=> setStructureForm((v)=> ({ ...v, beds: e.target.value }))}
+                      placeholder="e.g., 4"
+                    />
+                  </div>
+                );
+              })()}
               <div>
                 <label className="block text-sm text-gray-700 mb-1">Usage *</label>
                 {(() => {
@@ -1302,17 +1330,28 @@ export default function Sites() {
               <button className="px-3 py-1.5 text-sm text-gray-700" onClick={() => {
                 setStructureModalOpen(false);
                 setEditingStructure(null);
-                setStructureForm({ name: '', type: 'room', size: '', usage: '' as any, tents: [], racks: [] });
+                setStructureForm({ name: '', type: 'room', size: '', beds: '', usage: '' as any, tents: [], racks: [] });
               }}>Cancel</button>
               <button
                 className="inline-flex items-center gap-2 rounded-md bg-primary text-white px-3 py-1.5 text-sm hover:opacity-90 disabled:opacity-50"
-                disabled={!structureForm.name.trim() || !structureForm.size || isNaN(Number(structureForm.size)) || Number(structureForm.size) <= 0 || !structureForm.usage || (structureForm.usage === 'Racks/Tents' && (()=>{
-                  const ft2m = (ft:number)=> ft*0.3048; const areaT = (w:number,l:number)=> ft2m(w)*ft2m(l);
-                  const totalT = (structureForm.tents||[]).reduce((s,t)=> s + areaT(Number(t.widthFt||0), Number(t.lengthFt||0)), 0);
-                  const cm2m = (cm:number)=> cm/100; const areaR = (w:number,l:number)=> cm2m(w)*cm2m(l);
-                  const totalR = (structureForm.racks||[]).reduce((s,r)=> s + areaR(Number(r.widthCm||0), Number(r.lengthCm||0)), 0);
-                  const room = Number(structureForm.size||'0')||0; return totalT + totalR > room + 1e-6;
-                })())}
+                disabled={!structureForm.name.trim() || !structureForm.size || isNaN(Number(structureForm.size)) || Number(structureForm.size) <= 0 || !structureForm.usage || (()=>{
+                  // Check beds validation for greenhouses
+                  const f = facilityList.find((x)=> x.id === selectedFacility);
+                  const allowedType: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
+                  if (allowedType === 'greenhouse' && (!structureForm.beds || isNaN(Number(structureForm.beds)) || Number(structureForm.beds) <= 0)) {
+                    return true; // Invalid beds
+                  }
+                  // Check tents/racks validation for rooms
+                  if (structureForm.usage === 'Racks/Tents') {
+                    const ft2m = (ft:number)=> ft*0.3048; const areaT = (w:number,l:number)=> ft2m(w)*ft2m(l);
+                    const totalT = (structureForm.tents||[]).reduce((s,t)=> s + areaT(Number(t.widthFt||0), Number(t.lengthFt||0)), 0);
+                    const cm2m = (cm:number)=> cm/100; const areaR = (w:number,l:number)=> cm2m(w)*cm2m(l);
+                    const totalR = (structureForm.racks||[]).reduce((s,r)=> s + areaR(Number(r.widthCm||0), Number(r.lengthCm||0)), 0);
+                    const room = Number(structureForm.size||'0')||0; 
+                    return totalT + totalR > room + 1e-6;
+                  }
+                  return false;
+                })()}
                 onClick={async ()=>{
                   if (!selectedFacility) return;
                   try {
@@ -1322,6 +1361,7 @@ export default function Sites() {
                     const allowedType: 'room' | 'greenhouse' = (f?.type === 'building') ? 'room' : 'greenhouse';
                     const type = allowedType;
                     const sizeNum = Number(structureForm.size);
+                    const bedsNum = allowedType === 'greenhouse' ? Number(structureForm.beds) : undefined;
                     const tents = structureForm.usage === 'Racks/Tents' ? (structureForm.tents||[]).map(t => ({ widthFt: Number(t.widthFt||0), lengthFt: Number(t.lengthFt||0) })) : undefined;
                     const racks = structureForm.usage === 'Racks/Tents' ? (structureForm.racks||[]).map(r => ({ widthCm: Number(r.widthCm||0), lengthCm: Number(r.lengthCm||0), shelves: Number(r.shelves||0) })) : undefined;
                     
@@ -1330,7 +1370,8 @@ export default function Sites() {
                       await api.updateStructure(editingStructure, { 
                         name, 
                         type, 
-                        size: isNaN(sizeNum) ? 0 : sizeNum, 
+                        size: isNaN(sizeNum) ? 0 : sizeNum,
+                        beds: bedsNum && !isNaN(bedsNum) ? bedsNum : undefined,
                         usage: structureForm.usage as any, 
                         tents, 
                         racks 
@@ -1341,7 +1382,8 @@ export default function Sites() {
                         facilityId: selectedFacility, 
                         name, 
                         type, 
-                        size: isNaN(sizeNum) ? 0 : sizeNum, 
+                        size: isNaN(sizeNum) ? 0 : sizeNum,
+                        beds: bedsNum && !isNaN(bedsNum) ? bedsNum : undefined,
                         usage: structureForm.usage as any, 
                         tents, 
                         racks 
@@ -1354,7 +1396,7 @@ export default function Sites() {
                     
                     setStructureModalOpen(false);
                     setEditingStructure(null);
-                    setStructureForm({ name: '', type: 'room', size: '', usage: '' as any, tents: [], racks: [] });
+                    setStructureForm({ name: '', type: 'room', size: '', beds: '', usage: '' as any, tents: [], racks: [] });
                   } catch (e) {
                     showError(e);
                   }
@@ -1554,7 +1596,9 @@ export default function Sites() {
 
               {/* Location within structure */}
               <div>
-                <label className="block text-sm text-gray-700 mb-1">Location in {selectedTop} *</label>
+                <label className="block text-sm text-gray-700 mb-1">
+                  {currentStructure?.type === 'greenhouse' ? 'Location in Greenhouse' : `Location in ${selectedTop}`} *
+                </label>
                 <select 
                   className={`w-full border rounded-md px-2 py-1.5 text-base ${
                     !equipForm.location ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -1563,7 +1607,24 @@ export default function Sites() {
                   onChange={(e) => setEquipForm(v => ({...v, location: e.target.value}))}
                 >
                   <option value="">Select location...</option>
-                  <option value="General Room">General Room</option>
+                  
+                  {/* For greenhouses */}
+                  {currentStructure?.type === 'greenhouse' && (
+                    <>
+                      <option value="General Greenhouse">General Greenhouse</option>
+                      {/* Show beds if available */}
+                      {currentStructure?.beds && Array.from({ length: currentStructure.beds }, (_, index) => (
+                        <option key={`bed-${index}`} value={`Bed ${index + 1}`}>
+                          Bed {index + 1}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                  
+                  {/* For rooms */}
+                  {currentStructure?.type === 'room' && (
+                    <option value="General Room">General Room</option>
+                  )}
                   
                   {/* Show tents if available */}
                   {currentStructure?.tents?.map((tent, index) => (

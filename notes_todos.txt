@@ -1,12 +1,5 @@
 Operator.Farmer:
-after the user added a room the next section should be equipment. like in the other columns the user should have a add button to add equipment. it should look the same like Geolocations, facilities and structures.
-since the width is not enough maximum 3 columns should be visible. is there are more than 4 levels / columns the first the first ones shoudl dissappear. if the user clicks back on the level / column before the view should change again. e.g. VIEW 1 2 3 - User clicks on 4 - VIEW 2 3 4 - User clicks on 3 - VIEW 1 2 3
-the user can add different equipment to each room and assign it to racks or tents in the room or just the room itself. i want to have it like this: the user click on the + button and a modal
-opens where the user can use between common equipment what is used in commercial cannabis farms and also give the most important specs to all devices. also each device can be linked
-to an IOt device. this should be a mockup
-
 Greenhouse should have the option how many beds it have
-
 Notifications for empty beds and racks and rooms and greenhouses and highlight elements what represents these so the user directly see them
 make dashboard data mocks clickable and useable (only mocks)
 Fill production with mock data
