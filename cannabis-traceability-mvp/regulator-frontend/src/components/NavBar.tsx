@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import DisabledLink from './DisabledLink';
 import { useModule } from '../context/ModuleContext';
-import { Leaf, ShieldCheck, Wand2, User as UserIcon, ChevronDown, LogOut, Calendar as CalendarIcon, Package as PackageIcon, Bell, Sprout, FileText } from 'lucide-react';
+import { Leaf, Wand2, User as UserIcon, ChevronDown, LogOut, Calendar as CalendarIcon, Bell, FileText } from 'lucide-react';
 import { api } from '../lib/api';
 
 export default function NavBar() {
@@ -31,15 +30,7 @@ export default function NavBar() {
           <Link className={`${isActive('/dashboard')} inline-flex items-center gap-1`} to="/dashboard">
             <Wand2 className="h-4 w-4" aria-hidden /> Dashboard
           </Link>
-          <Link className={`${isActive('/sites')} inline-flex items-center gap-1`} to="/sites">
-            <Sprout className="h-4 w-4" aria-hidden /> Sites
-          </Link>
-          <Link className={`${isActive('/plants')} inline-flex items-center gap-1`} to="/plants">
-            <Leaf className="h-4 w-4" aria-hidden /> Plants
-          </Link>
-          <Link className={`${isActive('/inventory')} inline-flex items-center gap-1`} to="/inventory">
-            <PackageIcon className="h-4 w-4" aria-hidden /> Inventory
-          </Link>
+          {/* Sites/Plants/Inventory removed */}
           <Link className={`${isActive('/calendar')} inline-flex items-center gap-1`} to="/calendar">
             <CalendarIcon className="h-4 w-4" aria-hidden /> Calendar
           </Link>
@@ -154,7 +145,7 @@ function NotificationsMenu() {
       return;
     }
     const [plants, harvests, capacityAlerts] = await Promise.all([
-      api.getPlants(), 
+      api.getPlants(),
       api.getHarvests(),
       api.getEmptyCapacityAlerts()
     ]);
@@ -171,7 +162,7 @@ function NotificationsMenu() {
           text: `Empty ${structure.structureType}: ${structure.structureName} at ${structure.facilityName}`,
           severity: 'info',
           category: 'capacity',
-          href: '/sites',
+          href: '/dashboard',
         });
       });
     }
@@ -184,7 +175,7 @@ function NotificationsMenu() {
           text: `Low utilization (${Math.round(structure.occupancyRate * 100)}%): ${structure.structureName}`,
           severity: 'info',
           category: 'capacity',
-          href: '/sites',
+          href: '/dashboard',
         });
       });
     }
@@ -197,7 +188,7 @@ function NotificationsMenu() {
           text: `Over capacity: ${structure.structureName} (${structure.totalPlants} plants)`,
           severity: 'warning',
           category: 'capacity',
-        href: '/sites',
+  href: '/dashboard',
       });
     });
     }
@@ -226,7 +217,7 @@ function NotificationsMenu() {
           text: `Transplant recommended: ${p.strain} (${p.location})`, 
           severity: 'info', 
           category: 'calendar', 
-          href: '/sites' 
+          href: '/dashboard' 
         });
       }
       
@@ -251,7 +242,7 @@ function NotificationsMenu() {
             text: `Check drying lot ${h.id} (${daysDrying} days)`, 
             severity: 'warning', 
             category: 'critical', 
-            href: '/inventory' 
+            href: '/dashboard' 
           });
         }
       }

@@ -5,6 +5,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   // Backend should always be on port 3001 as per README
   const target = process.env.VITE_API_URL || env.VITE_API_URL || 'http://localhost:3001';
+  const hmrPort = Number(process.env.VITE_HMR_PORT || env.VITE_HMR_PORT || '24679');
   return {
     plugins: [
       react({
@@ -31,7 +32,9 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       hmr: {
         overlay: true,
-        port: 24678
+        port: hmrPort,
+        clientPort: hmrPort,
+        host: 'localhost'
       },
       proxy: {
         '/api': {

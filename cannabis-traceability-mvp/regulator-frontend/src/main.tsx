@@ -11,9 +11,7 @@ import Dashboard from './pages/Dashboard';
 import Wizard from './pages/Wizard';
 import LifecycleExplorer from './pages/LifecycleExplorer';
 import Calendar from './pages/Calendar';
-import Inventory from './pages/Inventory';
-import Sites from './pages/Sites';
-import Plants from './pages/Plants';
+// Removed: Inventory, Sites, Plants
 import BlockchainView from './pages/BlockchainView';
 import Profile from './pages/Profile';
 import Reports from './pages/Reports';
@@ -49,11 +47,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                         <Route path="/wizard" element={<Wizard />} />
                         <Route path="/lifecycle" element={<LifecycleExplorer />} />
                         <Route path="/calendar" element={<Calendar />} />
-                        <Route path="/production" element={<Navigate to="/sites" replace />} />
-                        <Route path="/facilities" element={<Navigate to="/sites" replace />} />
-                        <Route path="/sites" element={<Sites />} />
-                        <Route path="/plants" element={<Plants />} />
-                        <Route path="/inventory" element={<Inventory />} />
+                        <Route path="/production" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/facilities" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/sites" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/plants" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/inventory" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/reports" element={<Reports />} />
                         <Route path="/integrity" element={<BlockchainView />} />
                         <Route path="/debug/data" element={<DataDump />} />

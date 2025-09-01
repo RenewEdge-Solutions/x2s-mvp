@@ -37,7 +37,7 @@ export function computeEventsForCannabis(plants: any[], harvests: any[]): Schedu
         date: addDays(new Date(h.harvestedAt), 5),
         label: `Check drying lot ${h.id}`,
         type: 'drying-check',
-        href: '/inventory',
+  href: '/dashboard',
       });
     }
   });

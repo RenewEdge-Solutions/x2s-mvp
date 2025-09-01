@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Card from '../components/Card';
 import { useModule } from '../context/ModuleContext';
-import { api } from '../lib/api';
 import { Calendar as CalendarIcon, Plus, X, RefreshCw, Edit, Trash2 } from 'lucide-react';
 import { computeEventsForCannabis, eventColor } from '../lib/calendar';
 
@@ -31,16 +30,11 @@ export default function Calendar() {
     description: ''
   });
 
+  // Disable database fetching in regulator view; always clear any data
   useEffect(() => {
-    if (activeModule === 'cannabis') {
-      api.getPlants().then(setPlants);
-      api.getHarvests().then(setHarvests);
-      loadEvents();
-    } else {
-      setPlants([]);
-      setHarvests([]);
-      setCustomEvents([]);
-    }
+    setPlants([]);
+    setHarvests([]);
+    setCustomEvents([]);
   }, [activeModule]);
 
   // Handle opening specific event from URL parameter
@@ -60,15 +54,7 @@ export default function Calendar() {
     }
   }, [customEvents, searchParams, setSearchParams]);
 
-  const loadEvents = async () => {
-    try {
-      const events = await api.getEvents();
-      setCustomEvents(Array.isArray(events) ? events : []);
-    } catch (error) {
-      console.error('Failed to load events:', error);
-      setCustomEvents([]); // Set empty array on error
-    }
-  };
+  // Removed database-backed loadEvents for regulator view
 
   // Close time picker when clicking outside
   useEffect(() => {
@@ -85,64 +71,16 @@ export default function Calendar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showTimePicker]);
 
+  // Always render an empty calendar (no events) for regulator view
   const events = useMemo(() => {
-    if (activeModule !== 'cannabis') return [] as ReturnType<typeof computeEventsForCannabis>;
-    const computedEvents = computeEventsForCannabis(plants, harvests);
-    
-    // Add custom events from database - ensure it's an array
-    const customEventsArray = Array.isArray(customEvents) ? customEvents : [];
-    const customEventsFormatted = customEventsArray
-      .filter(event => event && event.date) // Filter out events without dates
-      .map(event => {
-        const eventDate = new Date(event.date);
-        // Validate that the date is valid
-        if (isNaN(eventDate.getTime())) {
-          console.warn('Invalid date for event:', event);
-          return null;
-        }
-        return {
-          ...event,
-          date: eventDate,
-          type: 'custom',
-          label: event.title,
-          description: event.description,
-          isCustom: true
-        };
-      })
-      .filter(Boolean); // Remove null entries
-    
-    return [...computedEvents, ...customEventsFormatted];
-  }, [plants, harvests, activeModule, customEvents]);
+    return [] as ReturnType<typeof computeEventsForCannabis>;
+  }, [cursor]);
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate form
-    if (!eventForm.title || !eventForm.date) {
-      alert('Please fill in the title and date');
-      return;
-    }
-    
-    try {
-      // Create new event in database
-      const newEvent = await api.createEvent({
-        title: eventForm.title,
-        date: eventForm.date,
-        time: eventForm.time,
-        description: eventForm.description,
-        isCustom: true
-      });
-      
-      // Add to local state
-      setCustomEvents(prevEvents => Array.isArray(prevEvents) ? [...prevEvents, newEvent] : [newEvent]);
-      
-      // Reset form and close modal
-      resetModal();
-      
-    } catch (error) {
-      console.error('Failed to create event:', error);
-      alert('Failed to create event. Please try again.');
-    }
+    // Disabled in regulator view; keep UI but do not persist
+    alert('Add Event is disabled in the regulator calendar.');
+    resetModal();
   };
 
   const handleFormChange = (field: string, value: string) => {
@@ -202,55 +140,15 @@ export default function Calendar() {
 
   const handleEditEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!selectedEvent || !eventForm.title || !eventForm.date) {
-      alert('Please fill in the title and date');
-      return;
-    }
-    
-    try {
-      const updatedEvent = await api.updateEvent(selectedEvent.id, {
-        title: eventForm.title,
-        date: eventForm.date,
-        time: eventForm.time,
-        description: eventForm.description
-      });
-      
-      // Update local state
-      setCustomEvents(prevEvents => 
-        Array.isArray(prevEvents) 
-          ? prevEvents.map(event => event.id === selectedEvent.id ? updatedEvent : event)
-          : [updatedEvent]
-      );
-      
-      setIsEditing(false);
-      resetModal();
-      
-    } catch (error) {
-      console.error('Failed to update event:', error);
-      alert('Failed to update event. Please try again.');
-    }
+    alert('Editing events is disabled in the regulator calendar.');
+    setIsEditing(false);
+    resetModal();
   };
 
   const handleDeleteEvent = async () => {
     if (!selectedEvent) return;
-    
-    try {
-      await api.deleteEvent(selectedEvent.id);
-      
-      // Remove from local state
-      setCustomEvents(prevEvents => 
-        Array.isArray(prevEvents) 
-          ? prevEvents.filter(event => event.id !== selectedEvent.id)
-          : []
-      );
-      
-      resetModal();
-      
-    } catch (error) {
-      console.error('Failed to delete event:', error);
-      alert('Failed to delete event. Please try again.');
-    }
+    alert('Deleting events is disabled in the regulator calendar.');
+    resetModal();
   };
 
   const formatTime = (hour: number, minute: number) => {
@@ -446,12 +344,12 @@ export default function Calendar() {
                       <div className="text-xs text-gray-500 mb-1">{d ? d.getDate() : ''}</div>
                       <div className="space-y-1">
                         {dayEvents.map((ev, idx) => {
-                          // Use different styling for custom events
-                          const isCustomEvent = 'isCustom' in ev && ev.isCustom;
-                          const eventStyle = isCustomEvent 
-                            ? 'bg-purple-500 border-2 border-purple-300' 
+                          const anyEv = ev as any;
+                          const isCustomEvent = !!(anyEv && anyEv.isCustom);
+                          const eventStyle = isCustomEvent
+                            ? 'bg-purple-500 border-2 border-purple-300'
                             : eventColor(ev.type as 'harvest' | 'transplant' | 'drying-check');
-                          
+
                           return (
                             <div
                               key={idx}
@@ -461,12 +359,12 @@ export default function Calendar() {
                               <span className="truncate block">{ev.label}</span>
                               <div className="absolute left-0 top-full mt-1 hidden group-hover:block bg-black text-white text-[11px] px-2 py-1 rounded shadow-lg z-10 max-w-[200px]">
                                 {ev.label}
-                                {'description' in ev && ev.description && (
-                                  <div className="text-gray-300 mt-1">{ev.description}</div>
-                                )}
-                                {isCustomEvent && (
+                                {anyEv?.description ? (
+                                  <div className="text-gray-300 mt-1">{String(anyEv.description)}</div>
+                                ) : null}
+                                {isCustomEvent ? (
                                   <div className="text-blue-300 mt-1 text-[10px]">Click to view/edit</div>
-                                )}
+                                ) : null}
                               </div>
                             </div>
                           );
