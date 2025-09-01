@@ -1,5 +1,46 @@
+# Volumes for persistent data and node_modules
+volumes:
+  postgres-data:
+  frontend_node_modules:
+  auditor_node_modules:
+  regulator_node_modules:
 version: '3.9'  # Note: version field is deprecated but kept for compatibility
 services:
+  auditor-frontend:
+    build:
+      context: ./auditor-frontend
+    environment:
+      VITE_USE_API_PROXY: 'true'
+      VITE_API_URL: http://backend:3001
+      VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
+      NODE_ENV: development
+      DEBUG: 'vite:*'
+    ports:
+      - "4000:4000"
+    depends_on:
+      - backend
+    volumes:
+      - ./auditor-frontend:/app
+      - auditor_node_modules:/app/node_modules
+    command: sh -c "npm install && npm run dev"
+
+  regulator-frontend:
+    build:
+      context: ./regulator-frontend
+    environment:
+      VITE_USE_API_PROXY: 'true'
+      VITE_API_URL: http://backend:3001
+      VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
+      NODE_ENV: development
+      DEBUG: 'vite:*'
+    ports:
+      - "5000:5000"
+    depends_on:
+      - backend
+    volumes:
+      - ./regulator-frontend:/app
+      - regulator_node_modules:/app/node_modules
+    command: sh -c "npm install && npm run dev"
   db:
     image: postgres:14-alpine
     environment:
@@ -36,29 +77,3 @@ services:
       - DEBUG=*
     command: npm run start:dev
 
-  frontend:
-    build:
-      context: ./frontend
-    environment:
-      # Enable Vite proxy; route API calls through the frontend dev server
-      VITE_USE_API_PROXY: 'true'
-      # Backend service URL inside Docker network (used by proxy target)
-      VITE_API_URL: http://backend:3001
-      # Google Maps API key for Vite (read from top-level .env)
-      VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
-      NODE_ENV: development
-      DEBUG: 'vite:*'
-    ports:
-      - "3000:3000"
-      - "24678:24678"  # HMR websocket port
-    depends_on:
-      - backend
-    volumes:
-      - ./frontend:/app
-      - frontend_node_modules:/app/node_modules
-    # Install dependencies at container start to populate node_modules volume, then start debug dev server
-    command: sh -c "npm install && npm run dev:debug"
-
-volumes:
-  postgres-data:
-  frontend_node_modules:
