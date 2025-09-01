@@ -8,7 +8,7 @@ import { api } from '../lib/api';
 
 export default function NavBar() {
   const { user, logout } = useAuth();
-  const { activeModule, setActiveModule, availableModules } = useModule();
+  const { activeModule, availableModules } = useModule();
   const { pathname } = useLocation();
   const isActive = (p: string) => {
     const active = pathname === p || (p === '/dashboard' && pathname === '/');
@@ -23,25 +23,9 @@ export default function NavBar() {
             <Leaf className="h-5 w-5 text-primary" aria-hidden />
             Traceability
           </Link>
-          {availableModules.length > 1 ? (
-            <select
-              aria-label="Select module"
-              title="Module"
-              value={activeModule}
-              onChange={(e) => setActiveModule(e.target.value as any)}
-              className="border border-gray-200 rounded-md text-sm px-2 py-1 bg-white text-gray-800 hover:bg-gray-50"
-            >
-              {(['cannabis', 'alcohol', 'mushrooms', 'explosives'] as const)
-                .filter((m) => availableModules.includes(m))
-                .map((m) => (
-                  <option key={m} value={m}>
-                    {m.charAt(0).toUpperCase() + m.slice(1)}
-                  </option>
-                ))}
-            </select>
-          ) : (
-            <DisabledLink>{availableModules[0]?.charAt(0).toUpperCase() + availableModules[0]?.slice(1)}</DisabledLink>
-          )}
+          <span className="ml-2 px-2 py-1 rounded bg-gray-100 text-sm font-medium text-gray-700">
+            {activeModule.charAt(0).toUpperCase() + activeModule.slice(1)}
+          </span>
         </div>
         <nav className="flex items-center gap-4">
           <Link className={`${isActive('/dashboard')} inline-flex items-center gap-1`} to="/dashboard">

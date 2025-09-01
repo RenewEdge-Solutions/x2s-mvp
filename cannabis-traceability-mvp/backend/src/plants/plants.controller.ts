@@ -12,7 +12,7 @@ export class PlantsController {
   }
 
   @Post('germinate')
-  germinate(@Body() body: { seedId: string; strain: string; location: string; by?: string }) {
+  germinate(@Body() body: { seedId: string; strain: string; location: string; by?: string; quantity?: number }) {
     return this.plantsService.germinateFromSeed(body);
   }
 

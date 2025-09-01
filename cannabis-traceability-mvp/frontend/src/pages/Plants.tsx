@@ -106,7 +106,26 @@ function Plants() {
   const [selectedSeed, setSelectedSeed] = useState<Seed | null>(null);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
   const [selectedLocation, setSelectedLocation] = useState('');
+  const [selectedTentRack, setSelectedTentRack] = useState('');
+  const [selectedShelf, setSelectedShelf] = useState('');
+
   const [germinateQuantity, setGerminateQuantity] = useState(1);
+
+  // Debug: log locations when germinate modal opens
+  React.useEffect(() => {
+    if (isGerminateModalOpen) {
+      // eslint-disable-next-line no-console
+      console.log('DEBUG locations:', locations);
+    }
+  }, [isGerminateModalOpen, locations]);
+
+  // Debug: log locations when germinate modal opens
+  useEffect(() => {
+    if (isGerminateModalOpen) {
+      // eslint-disable-next-line no-console
+      console.log('DEBUG locations:', locations);
+    }
+  }, [isGerminateModalOpen, locations]);
 
   useEffect(() => {
     loadData();
@@ -130,9 +149,9 @@ function Plants() {
       );
       setSeeds(seedItems);
       
-      // Filter plants to exclude those still in seed stage (only show plants that have started germination)
-      const activePlants = plantsData.filter((plant: Plant) => plant.stage !== PlantStage.SEED);
-      setPlants(activePlants);
+  // Filter plants to exclude those still in seed stage (only show plants that have started germination)
+  const activePlants = (plantsData as Plant[]).filter((plant) => plant.stage !== PlantStage.SEED);
+  setPlants(activePlants);
       
       setLocations(locationsData);
     } catch (error) {
@@ -192,23 +211,25 @@ function Plants() {
 
   const handleGerminateSeed = async () => {
     if (!selectedSeed || !selectedLocation || germinateQuantity < 1) return;
-    
+    // Compose location string
+    let locationString = selectedLocation;
+    if (selectedTentRack) locationString += `/${selectedTentRack}`;
+    if (selectedShelf) locationString += `/${selectedShelf}`;
     try {
-      // Create multiple plants in a batch
-      const promises = [];
-      for (let i = 0; i < germinateQuantity; i++) {
-        promises.push(api.germinateFromSeed({
-          seedId: selectedSeed.id,
-          strain: selectedSeed.name,
-          location: selectedLocation,
-          by: 'operator'
-        }));
-      }
-      await Promise.all(promises);
+      // Call backend once with the total quantity
+      await api.germinateFromSeed({
+        seedId: selectedSeed.id,
+        strain: selectedSeed.name,
+        location: locationString,
+        by: 'operator',
+        quantity: germinateQuantity,
+      });
       await loadData();
       setIsGerminateModalOpen(false);
       setSelectedSeed(null);
       setSelectedLocation('');
+      setSelectedTentRack('');
+      setSelectedShelf('');
       setGerminateQuantity(1);
     } catch (error) {
       console.error('Error germinating seed:', error);
@@ -325,8 +346,8 @@ function Plants() {
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Strains</option>
-            {Array.from(new Set(seeds.map(s => s.strain))).map(strain => (
-              <option key={strain} value={strain}>{strain}</option>
+            {Array.from(new Set(seeds.map(s => s.strain))).map((strain, idx) => (
+              <option key={strain || idx} value={strain}>{strain}</option>
             ))}
           </select>
         </div>
@@ -531,11 +552,23 @@ function Plants() {
 
       {/* Germinate Modal */}
       {isGerminateModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <>
+          {/* DEBUG: List all tent/rack names and their parsed parent for troubleshooting */}
+          <div style={{background:'#fffbe6',color:'#b36b00',padding:'8px',marginBottom:'8px',fontSize:'12px'}}>
+            <b>DEBUG tent/rack parent parse:</b>
+            <ul>
+              {locations.filter(l => l.type==='tent'||l.type==='rack').map(l => {
+                const parts = l.name.split('/');
+                return <li key={l.id}>{l.name} → parent: {parts.slice(0,-1).join('/')}</li>;
+              })}
+            </ul>
+          </div>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-4">Germinate Seed</h3>
             <p className="text-gray-600 mb-4">
-              Germinating: {selectedSeed?.name} ({selectedSeed?.strain})
+              Germinating: {selectedSeed?.name}
+              {selectedSeed?.strain ? ` (${selectedSeed.strain})` : ''}
             </p>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -557,18 +590,52 @@ function Plants() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Location
               </label>
+              {/* First dropdown: Greenhouse/Room only */}
               <select
                 value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={e => {
+                  setSelectedLocation(e.target.value);
+                  setSelectedTentRack('');
+                  setSelectedShelf('');
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
               >
-                <option value="">Choose a location...</option>
-                {locations.map((location) => (
-                  <option key={location.id} value={location.name}>
-                    {location.name} ({location.type})
-                  </option>
-                ))}
+                <option value="">Choose a greenhouse or room...</option>
+                {locations
+                  .filter((location) =>
+                    (location.type === 'greenhouse' || location.type === 'room') &&
+                    !location.name.toLowerCase().includes('storage') &&
+                    !location.name.toLowerCase().includes('drying')
+                  )
+                  .map((location) => (
+                    <option key={location.id || location.name} value={location.name}>
+                      {location.name} ({location.type})
+                    </option>
+                  ))}
               </select>
+              {/* Third dropdown: Shelf if available under selectedTentRack */}
+              {selectedLocation && selectedTentRack && (
+                <select
+                  value={selectedShelf}
+                  onChange={e => setSelectedShelf(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">{`Choose shelf in ${selectedTentRack} (optional)`}</option>
+                  {locations
+                    .filter((location) =>
+                      location.type === 'shelf' &&
+                      location.name.startsWith(selectedLocation + '/' + selectedTentRack + '/')
+                    )
+                    .map((location) => {
+                      const value = location.name.replace(selectedLocation + '/' + selectedTentRack + '/', '');
+                      return (
+                        <option key={location.id || value} value={value}>
+                          {value} (shelf)
+                        </option>
+                      );
+                    })}
+                </select>
+              )}
             </div>
             <div className="flex space-x-4">
               <button
@@ -583,6 +650,8 @@ function Plants() {
                   setIsGerminateModalOpen(false);
                   setSelectedSeed(null);
                   setSelectedLocation('');
+                  setSelectedTentRack('');
+                  setSelectedShelf('');
                   setGerminateQuantity(1);
                 }}
                 className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-md"
@@ -592,6 +661,7 @@ function Plants() {
             </div>
           </div>
         </div>
+        </>
       )}
 
       {/* Relocate Modal */}

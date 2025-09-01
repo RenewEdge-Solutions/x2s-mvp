@@ -88,50 +88,22 @@ export default function Dashboard() {
     return { from, to };
   };
 
-  const kpis = useMemo(() => {
-    const activePlants = plants.filter((p) => !p.harvested);
-    const veg = activePlants.filter((p) => ageInDays(p.plantedAt) < 14).length;
-    const flower = activePlants.filter((p) => ageInDays(p.plantedAt) >= 14).length;
-  const dryingCount = harvests.filter((h) => h.status === 'drying').length;
-    const storageGrams = harvests
-      .filter((h) => h.status === 'dried')
-      .reduce((sum, h) => sum + (Number(h.yieldGrams) || 0), 0);
-    const inRange = (d: string | Date, r: { from: Date; to: Date }) => {
-      const t = new Date(d).getTime();
-      return t >= r.from.getTime() && t < r.to.getTime();
-    };
-    const soldRange = getRange(soldPeriod);
-    const revenueRange = getRange(revenuePeriod);
-    const soldInPeriod = harvests.filter((h) => h.status === 'dried' && inRange(h.harvestedAt, soldRange));
-    const soldGramsInPeriod = soldInPeriod.reduce((sum, h) => sum + (Number(h.yieldGrams) || 0), 0);
-    const harvestsInRevenuePeriod = harvests.filter((h) => h.status === 'dried' && inRange(h.harvestedAt, revenueRange));
-    const pricePerGram = 6; // simple estimate; can be made configurable later
-    const estRevenue = harvestsInRevenuePeriod
-      .reduce((sum, h) => sum + (Number(h.yieldGrams) || 0) * pricePerGram, 0);
-    const harvestedPlantsCount = harvests.length;
-    
-    // Calculate capacity metrics
-    const totalCapacity = occupancyData.reduce((sum, facility) => sum + facility.totalCapacity, 0);
-    const totalOccupied = occupancyData.reduce((sum, facility) => sum + facility.totalOccupied, 0);
-    const emptyStructures = occupancyData.reduce((sum, facility) => sum + facility.emptyStructures, 0);
-    const capacityUtilization = totalCapacity > 0 ? (totalOccupied / totalCapacity) * 100 : 0;
-    
-    return {
-      activePlants: activePlants.length,
-      veg,
-      flower,
-  dryingCount,
-      storageGrams,
-      harvestedPlantsCount,
-      soldGramsInPeriod,
-      estRevenue,
-      alerts: Math.max(0, plants.length + harvests.length - 5),
-      totalCapacity,
-      totalOccupied,
-      emptyStructures,
-      capacityUtilization,
-    };
-  }, [plants, harvests, soldPeriod, revenuePeriod, occupancyData]);
+  // HARDCODED KPI MOCKUP VALUES FOR UI DEMO
+  const kpis = useMemo(() => ({
+    activePlants: 42,
+    veg: 18,
+    flower: 24,
+    dryingCount: 2,
+    storageGrams: 2450,
+    harvestedPlantsCount: 39,
+    soldGramsInPeriod: 1800,
+    estRevenue: 10800,
+    alerts: 3,
+    totalCapacity: 89,
+    totalOccupied: 64,
+    emptyStructures: 3,
+    capacityUtilization: 72,
+  }), []);
 
   const shortcuts = useMemo(() => {
     type Btn = { label: string; to: string; icon: React.ReactNode; tone?: 'danger' | 'warn' | 'neutral' };
@@ -515,47 +487,40 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {activeModule === 'cannabis' && occupancyData.length > 0 && (
+  {activeModule === 'cannabis' && (
         <Card>
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-medium text-gray-900">Facility Capacity</h2>
             <Link to="/sites" className="text-sm text-primary hover:underline">View Details</Link>
           </div>
           <div className="space-y-3">
-            {occupancyData.slice(0, 5).map((facility: any) => (
-              <div key={facility.facilityId} className="border rounded-lg p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-gray-900">{facility.facilityName}</h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    facility.occupancyRate > 0.8 
-                      ? 'bg-green-100 text-green-800'
-                      : facility.occupancyRate > 0.5
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {Math.round(facility.occupancyRate * 100)}% utilized
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <span>{facility.totalOccupied}/{facility.totalCapacity} capacity</span>
-                  {facility.emptyStructures > 0 && (
-                    <span className="text-amber-600">{facility.emptyStructures} empty structures</span>
-                  )}
-                </div>
-                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full ${
-                      facility.occupancyRate > 0.8 
-                        ? 'bg-green-500'
-                        : facility.occupancyRate > 0.5
-                        ? 'bg-yellow-500'
-                        : 'bg-red-500'
-                    }`}
-                    style={{ width: `${Math.min(100, facility.occupancyRate * 100)}%` }}
-                  />
-                </div>
+            {/* HARDCODED FACILITY CAPACITY MOCKUP */}
+            <div className="border rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-gray-900">Main Building</h3>
+                <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">78% utilized</span>
               </div>
-            ))}
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <span>39/50 capacity</span>
+                <span className="text-amber-600">2 empty structures</span>
+              </div>
+              <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                <div className="h-2 rounded-full bg-yellow-500" style={{ width: '78%' }} />
+              </div>
+            </div>
+            <div className="border rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-gray-900">Farm Area</h3>
+                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">86% utilized</span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <span>12/14 capacity</span>
+                <span className="text-amber-600">1 empty structure</span>
+              </div>
+              <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                <div className="h-2 rounded-full bg-green-500" style={{ width: '86%' }} />
+              </div>
+            </div>
           </div>
         </Card>
       )}

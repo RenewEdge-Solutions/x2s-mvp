@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
+import { Structure } from '../locations/structure.entity';
 
 @Entity()
 export class Equipment {
@@ -14,8 +15,14 @@ export class Equipment {
   @Column({ type: 'json' })
   details!: Record<string, string>; // Dynamic details like { 'Wattage': '500W', 'Spectrum': 'Full' }
 
+
   @Column()
-  location!: string; // e.g., 'Room 1 -> Tent 1'
+  location!: string; // e.g., 'Room 1 -> Tent 1' (for display only)
+
+  @ManyToOne(() => Structure, { nullable: true, onDelete: 'CASCADE' })
+  structure?: Structure;
+  @Column({ nullable: true })
+  structureId?: string;
 
   @Column({ nullable: true })
   iotDevice?: string; // e.g., 'Sensor-001'

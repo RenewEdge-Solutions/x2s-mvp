@@ -94,7 +94,7 @@ export const api = {
       body: JSON.stringify(data),
     }).then((r) => r.json());
   },
-  germinateFromSeed(data: { seedId: string; strain: string; location: string; by?: string }) {
+  germinateFromSeed(data: { seedId: string; strain: string; location: string; by?: string; quantity?: number }) {
     return fetchJson(`/plants/germinate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -242,14 +242,14 @@ export const api = {
   getEquipment() {
   return fetchJson(`/equipment`).then((r) => r.json());
   },
-  createEquipment(data: { type: string; subtype: string; details: Record<string, string>; location: string; iotDevice?: string }) {
+  createEquipment(data: { type: string; subtype: string; details: Record<string, string>; location: string; structureId?: string; iotDevice?: string }) {
   return fetchJson(`/equipment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }).then((r) => r.json());
   },
-  updateEquipment(id: string, data: { type: string; subtype: string; details: Record<string, string>; location: string; iotDevice?: string }) {
+  updateEquipment(id: string, data: { type: string; subtype: string; details: Record<string, string>; location: string; structureId?: string; iotDevice?: string }) {
   return fetchJson(`/equipment/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -258,6 +258,9 @@ export const api = {
   },
   getEquipmentByLocation(location: string) {
   return fetchJson(`/equipment/location/${encodeURIComponent(location)}`).then((r) => r.json());
+  },
+  getEquipmentByStructureId(structureId: string) {
+  return fetchJson(`/equipment/structure/${encodeURIComponent(structureId)}`).then((r) => r.json());
   },
   deleteEquipment(id: string) {
     return fetchJson(`/equipment/${id}`, { method: 'DELETE' });

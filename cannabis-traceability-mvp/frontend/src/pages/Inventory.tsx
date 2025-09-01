@@ -65,31 +65,51 @@ export default function Inventory() {
       const geoName = structure.facility?.geo?.name || 'Unknown Location';
       const baseLocation = `${structure.name} - ${facilityName} - ${geoName}`;
       
-      // Add the main room/structure for all items
-      options.push(baseLocation);
-      
-      // For Live Plants (Seeds/Clones), add specific detailed locations
-      if (selectedCategory === 'Live Plants') {
-        // Add tents if they exist
-        if (structure.tents && structure.tents.length > 0) {
-          structure.tents.forEach((tent: any, index: number) => {
-            options.push(`${baseLocation} - Tent ${index + 1} (${tent.widthFt}x${tent.lengthFt}ft)`);
-          });
+      // Special handling for seeds - only allow storage rooms
+      if (selectedCategory === 'Live Plants' && selectedSubcategory === 'Seeds') {
+        // Only include storage rooms for seeds
+        if (structure.usage === 'Storage') {
+          options.push(baseLocation);
+          
+          // Add racks if they exist (for organized seed storage)
+          if (structure.racks && structure.racks.length > 0) {
+            structure.racks.forEach((rack: any, rackIndex: number) => {
+              // Add the rack itself
+              options.push(`${baseLocation} - Rack ${rackIndex + 1} (${rack.widthCm}x${rack.lengthCm}cm)`);
+              // Add individual shelves for detailed tracking
+              for (let shelf = 1; shelf <= rack.shelves; shelf++) {
+                options.push(`${baseLocation} - Rack ${rackIndex + 1} - Shelf ${shelf}`);
+              }
+            });
+          }
         }
+      } else {
+        // For all other inventory items
+        // Add the main room/structure
+        options.push(baseLocation);
         
-        // Add racks if they exist (useful for clones and seedlings)
-        if (structure.racks && structure.racks.length > 0) {
-          structure.racks.forEach((rack: any, rackIndex: number) => {
-            // Add the rack itself
-            options.push(`${baseLocation} - Rack ${rackIndex + 1} (${rack.widthCm}x${rack.lengthCm}cm)`);
-            // Add individual shelves for detailed tracking
-            for (let shelf = 1; shelf <= rack.shelves; shelf++) {
-              options.push(`${baseLocation} - Rack ${rackIndex + 1} - Shelf ${shelf}`);
-            }
-          });
+        // For Live Plants (Clones), add specific detailed locations
+        if (selectedCategory === 'Live Plants') {
+          // Add tents if they exist
+          if (structure.tents && structure.tents.length > 0) {
+            structure.tents.forEach((tent: any, index: number) => {
+              options.push(`${baseLocation} - Tent ${index + 1} (${tent.widthFt}x${tent.lengthFt}ft)`);
+            });
+          }
+          
+          // Add racks if they exist (useful for clones and seedlings)
+          if (structure.racks && structure.racks.length > 0) {
+            structure.racks.forEach((rack: any, rackIndex: number) => {
+              // Add the rack itself
+              options.push(`${baseLocation} - Rack ${rackIndex + 1} (${rack.widthCm}x${rack.lengthCm}cm)`);
+              // Add individual shelves for detailed tracking
+              for (let shelf = 1; shelf <= rack.shelves; shelf++) {
+                options.push(`${baseLocation} - Rack ${rackIndex + 1} - Shelf ${shelf}`);
+              }
+            });
+          }
         }
       }
-      // For other categories (Growing Supplies), the basic structure location is sufficient
     });
     
     return options;
@@ -99,17 +119,26 @@ export default function Inventory() {
   const validateField = (name: string, value: any, field: any) => {
     if (!field.required) return true;
     
+    // Basic validation based on field type
+    let isValid = true;
     if (field.type === 'select') {
-      return value && value.trim() !== '';
+      isValid = value && value.trim() !== '';
     } else if (field.type === 'number') {
-      return value !== '' && value !== null && value !== undefined && !isNaN(Number(value)) && Number(value) >= 0;
+      isValid = value !== '' && value !== null && value !== undefined && !isNaN(Number(value)) && Number(value) >= 0;
     } else if (field.type === 'date') {
-      return value && value.trim() !== '';
+      isValid = value && value.trim() !== '';
     } else if (field.type === 'file') {
-      return value && value.trim() !== '';
+      isValid = value && value.trim() !== '';
     } else {
-      return value && value.trim() !== '';
+      isValid = value && value.trim() !== '';
     }
+    
+    // Special validation for seed locations
+    if (name === 'location' && isValid && selectedCategory === 'Live Plants' && selectedSubcategory === 'Seeds') {
+      isValid = isLocationStorageRoom(value);
+    }
+    
+    return isValid;
   };
 
   // Update field errors in real-time
@@ -135,9 +164,31 @@ export default function Inventory() {
     setFieldErrors(errors);
   };
 
+  // Check if the selected location is a storage room
+  const isLocationStorageRoom = (location: string) => {
+    // Find the structure that matches this location
+    const structureMatch = structures.find(structure => {
+      const facilityName = structure.facility?.name || 'Unknown Facility';
+      const geoName = structure.facility?.geo?.name || 'Unknown Location';
+      const baseLocation = `${structure.name} - ${facilityName} - ${geoName}`;
+      
+      // Check if location starts with this base location (might have rack/shelf details appended)
+      return location.startsWith(baseLocation);
+    });
+    
+    return structureMatch?.usage === 'Storage';
+  };
+
   // Update validation whenever form data changes
   useEffect(() => {
     updateFieldErrors();
+    
+    // Extra validation for seeds - they must be in storage rooms
+    if (selectedCategory === 'Live Plants' && selectedSubcategory === 'Seeds' && formData.location) {
+      if (!isLocationStorageRoom(formData.location)) {
+        setFieldErrors(prev => ({ ...prev, location: true }));
+      }
+    }
   }, [formData, selectedCategory, selectedSubcategory]);
 
   // Handle input changes with validation
@@ -513,19 +564,27 @@ export default function Inventory() {
                         {field.label} {field.required && '*'}
                       </label>
                       {field.type === 'select' ? (
-                        <select
-                          value={formData[field.name] || ''}
-                          onChange={(e) => handleInputChange(field.name, e.target.value)}
-                          required={field.required}
-                          className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent ${
-                            fieldErrors[field.name] ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                          }`}
-                        >
-                          <option value="">Select {field.label}</option>
-                          {field.options?.map(option => (
-                            <option key={option} value={option}>{option}</option>
-                          ))}
-                        </select>
+                        <div>
+                          <select
+                            value={formData[field.name] || ''}
+                            onChange={(e) => handleInputChange(field.name, e.target.value)}
+                            required={field.required}
+                            className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent ${
+                              fieldErrors[field.name] ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                            }`}
+                          >
+                            <option value="">Select {field.label}</option>
+                            {field.options?.map(option => (
+                              <option key={option} value={option}>{option}</option>
+                            ))}
+                          </select>
+                          {field.name === 'location' && selectedCategory === 'Live Plants' && selectedSubcategory === 'Seeds' && field.options?.length === 0 && (
+                            <div className="mt-1 text-amber-600 text-xs flex items-center">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              Seeds must be stored in storage rooms only. No storage rooms are available.
+                            </div>
+                          )}
+                        </div>
                       ) : field.type === 'textarea' ? (
                         <textarea
                           value={formData[field.name] || ''}

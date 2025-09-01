@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { Equipment } from './equipment.entity';
 
 @Injectable()
@@ -12,6 +12,7 @@ export class EquipmentService {
     subtype: string;
     details: Record<string, string>;
     location: string;
+    structureId?: string;
     iotDevice?: string;
   }) {
     const equipment = this.repo.create({
@@ -19,6 +20,7 @@ export class EquipmentService {
       subtype: dto.subtype,
       details: dto.details,
       location: dto.location,
+      structureId: dto.structureId,
       iotDevice: dto.iotDevice,
     });
     return this.repo.save(equipment);
@@ -29,7 +31,18 @@ export class EquipmentService {
   }
 
   async findByLocation(location: string) {
-    return this.repo.find({ where: { location }, order: { createdAt: 'DESC' } });
+    // Find by location directly (for backward compatibility) and also with LIKE for partial matching
+    return this.repo.find({ 
+      where: [
+        { location }, 
+        { location: Like(`${location}%`) } 
+      ],
+      order: { createdAt: 'DESC' } 
+    });
+  }
+  
+  async findByStructureId(structureId: string) {
+    return this.repo.find({ where: { structureId }, order: { createdAt: 'DESC' } });
   }
 
   async update(id: string, dto: {
@@ -37,6 +50,7 @@ export class EquipmentService {
     subtype: string;
     details: Record<string, string>;
     location: string;
+    structureId?: string;
     iotDevice?: string;
   }) {
     await this.repo.update(id, {
@@ -44,6 +58,7 @@ export class EquipmentService {
       subtype: dto.subtype,
       details: dto.details,
       location: dto.location,
+      structureId: dto.structureId,
       iotDevice: dto.iotDevice,
     });
     return this.repo.findOneByOrFail({ id });

@@ -334,6 +334,7 @@ export default function Sites() {
     subtype: string; 
     details: Record<string, string>; 
     location: string; 
+    structureId?: string;
     iotDevice?: string; 
     createdAt: string; 
   };
@@ -350,6 +351,7 @@ export default function Sites() {
     location: string; 
     description: string; 
     iotDevice: string;
+    structureId: string;
   }>({ 
     name: '', 
     category: '', 
@@ -358,7 +360,8 @@ export default function Sites() {
     specification: '', 
     location: '', 
     description: '',
-    iotDevice: ''
+    iotDevice: '',
+    structureId: ''
   });
   const [iotScanning, setIotScanning] = useState(false);
   const [iotDevices, setIotDevices] = useState<Array<{id: string; name: string; type: string; signal: number}>>([]);
@@ -668,10 +671,21 @@ export default function Sites() {
                   <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
                     {tops.map((loc) => {
                       const subs = Object.values(loc.sublocations);
-                      // Count real equipment for this structure
-                      const equipmentCount = equipmentList.filter(eq => 
-                        eq.location.startsWith(loc.key)
-                      ).length;
+                      // Find the structure ID to count equipment
+                      const structure = structureList.find(s => {
+                        if (s.facility !== selectedFacility) return false;
+                        const leftBase = s.type === 'room'
+                          ? `Indoor ${s.name.replace(/^Indoor\s+/i, '')}`
+                          : (s.name.match(/^Greenhouse\s+/i) ? s.name : `Greenhouse ${s.name.replace(/^Greenhouse\s+/i, '')}`);
+                        const facilityName = facilityList.find(f => f.id === selectedFacility)?.name || '';
+                        const key = `${leftBase} - ${facilityName}`;
+                        return key === loc.key;
+                      });
+                      
+                      // Count real equipment for this structure by structureId if available
+                      const equipmentCount = structure?.id 
+                        ? equipmentList.filter(eq => eq.structureId === structure.id).length
+                        : equipmentList.filter(eq => eq.location.startsWith(loc.key)).length;
                       const active = selectedTop === loc.key;
                       const subsTyped = subs.map((s) => s.type);
                       const countBy = (t: Sublocation['type']) => subsTyped.filter((x) => x === t).length;
@@ -870,16 +884,25 @@ export default function Sites() {
                   <button
                     className="p-1.5 rounded-md border border-gray-200 text-gray-700 hover:bg-gray-50"
                     aria-label="Add equipment"
-                    onClick={() => setEquipModalOpen(true)}
+                    onClick={() => {
+                      setEquipForm(prev => ({
+                        ...prev,
+                        structureId: currentStructure?.id || ''
+                      }));
+                      setEquipModalOpen(true);
+                    }}
                   >
                     <Plus className="h-4 w-4" aria-hidden />
                   </button>
                 </div>
                 {(() => {
-                  // Get equipment for the selected structure
-                  const structureEquipment = equipmentList.filter(eq => 
-                    eq.location.startsWith(selectedTop || '')
-                  );
+                  // Get structure ID for the selected structure
+                  const structureId = currentStructure?.id;
+                  
+                  // Get equipment for the selected structure (using structureId if available)
+                  const structureEquipment = structureId 
+                    ? equipmentList.filter(eq => eq.structureId === structureId) 
+                    : equipmentList.filter(eq => eq.location.startsWith(selectedTop || ''));
                   
                   return structureEquipment.length > 0 ? (
                     <div className="space-y-3">
@@ -952,7 +975,8 @@ export default function Sites() {
                                     name: equipment.details.Name || '',
                                     location: equipment.location.split(' → ').slice(1).join(' → '),
                                     description: equipment.details.Description || '',
-                                    iotDevice: equipment.iotDevice || ''
+                                    iotDevice: equipment.iotDevice || '',
+                                    structureId: equipment.structureId || currentStructure?.id || ''
                                   });
                                   setEquipModalOpen(true);
                                 }}
@@ -1872,7 +1896,7 @@ export default function Sites() {
                 onClick={() => {
                   setEquipModalOpen(false);
                   setEditingEquipment(null);
-                  setEquipForm({ name: '', category: '', type: '', power: '', specification: '', location: '', description: '', iotDevice: '' });
+                  setEquipForm({ name: '', category: '', type: '', power: '', specification: '', location: '', description: '', iotDevice: '', structureId: '' });
                   setIotDevices([]);
                 }}
               >
@@ -1903,6 +1927,7 @@ export default function Sites() {
                         'Description': equipForm.description || ''
                       },
                       location: `${selectedTop} → ${equipForm.location}`,
+                      structureId: currentStructure?.id, // Use structureId for robust linking
                       iotDevice: equipForm.iotDevice || undefined
                     };
                     
@@ -1923,7 +1948,7 @@ export default function Sites() {
                     // Close modal and reset form
                     setEquipModalOpen(false);
                     setEditingEquipment(null);
-                    setEquipForm({ name: '', category: '', type: '', power: '', specification: '', location: '', description: '', iotDevice: '' });
+                    setEquipForm({ name: '', category: '', type: '', power: '', specification: '', location: '', description: '', iotDevice: '', structureId: '' });
                     setIotDevices([]);
                     
                     console.log(editingEquipment ? 'Equipment updated successfully' : 'Equipment created successfully');

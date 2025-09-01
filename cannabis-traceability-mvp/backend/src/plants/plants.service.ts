@@ -3,6 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Plant, PlantStage } from './plant.entity';
 import { InventoryService } from '../inventory/inventory.service';
+import { Structure } from '../locations/structure.entity';
+import { Inject } from '@nestjs/common';
+import { LocationsService } from '../locations/locations.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -10,6 +13,7 @@ export class PlantsService {
   constructor(
     @InjectRepository(Plant) private repo: Repository<Plant>,
     private inventoryService: InventoryService,
+    @InjectRepository(Structure) private structureRepo: Repository<Structure>,
   ) {}
 
   async create(dto: { strain: string; location: string; by?: string }) {
@@ -34,32 +38,38 @@ export class PlantsService {
     return { plant: saved, hash };
   }
 
-  async germinateFromSeed(dto: { seedId: string; strain: string; location: string; by?: string }) {
-    // First, reduce the seed quantity in inventory
-    await this.inventoryService.reduceQuantity(dto.seedId, 1);
+  async germinateFromSeed(dto: { seedId: string; strain: string; location: string; by?: string; quantity?: number }) {
+    const qty = dto.quantity && dto.quantity > 0 ? dto.quantity : 1;
+    // Atomically reduce the seed quantity in inventory
+    await this.inventoryService.reduceQuantity(dto.seedId, qty);
 
-    // Create a plant starting in germination stage
-    const plant = this.repo.create({
-      strain: dto.strain,
-      location: dto.location,
-      plantedAt: new Date(),
-      stage: PlantStage.GERMINATION,
-      stageChangedAt: new Date(),
-      harvested: false,
-    });
-    const saved = await this.repo.save(plant);
-    
+    // Create multiple plants in a batch
+    const newPlants: Plant[] = [];
+    for (let i = 0; i < qty; i++) {
+      const plant = this.repo.create({
+        strain: dto.strain,
+        location: dto.location,
+        plantedAt: new Date(),
+        stage: PlantStage.GERMINATION,
+        stageChangedAt: new Date(),
+        harvested: false,
+      });
+      newPlants.push(plant);
+    }
+    const saved = await this.repo.save(newPlants);
+    // Return all created plants and a hash for the batch
     const payload = {
       type: 'plant_from_germination',
-      id: saved.id,
-      strain: saved.strain,
-      location: saved.location,
-      plantedAt: saved.plantedAt.toISOString(),
+      ids: saved.map(p => p.id),
+      strain: dto.strain,
+      location: dto.location,
+      plantedAt: saved[0]?.plantedAt?.toISOString?.() || new Date().toISOString(),
       seedId: dto.seedId,
       by: dto.by || 'operator',
+      quantity: qty,
     } as const;
     const hash = crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
-    return { plant: saved, hash };
+    return { plants: saved, hash };
   }
 
   findAll() {
@@ -72,6 +82,16 @@ export class PlantsService {
       throw new BadRequestException('Plant not found');
     }
     plant.location = newLocation;
+
+    // Check if newLocation is a drying room
+    // Try to find a structure with this name and usage 'Drying'
+    const structure = await this.structureRepo.findOne({ where: { name: newLocation } });
+    if (structure && structure.usage === 'Drying') {
+      plant.stage = PlantStage.DRYING;
+      plant.stageChangedAt = new Date();
+      plant.driedAt = null; // Reset driedAt, will be set when drying is complete
+    }
+
     return this.repo.save(plant);
   }
 

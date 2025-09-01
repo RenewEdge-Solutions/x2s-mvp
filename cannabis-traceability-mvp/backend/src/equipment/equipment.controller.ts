@@ -11,6 +11,7 @@ export class EquipmentController {
     subtype: string;
     details: Record<string, string>;
     location: string;
+    structureId?: string;
     iotDevice?: string;
   }) {
     return this.equipmentService.create(body);
@@ -25,6 +26,11 @@ export class EquipmentController {
   findByLocation(@Param('location') location: string) {
     return this.equipmentService.findByLocation(location);
   }
+  
+  @Get('structure/:structureId')
+  findByStructureId(@Param('structureId') structureId: string) {
+    return this.equipmentService.findByStructureId(structureId);
+  }
 
   @Put(':id')
   update(@Param('id') id: string, @Body() body: {
@@ -32,6 +38,7 @@ export class EquipmentController {
     subtype: string;
     details: Record<string, string>;
     location: string;
+    structureId?: string;
     iotDevice?: string;
   }) {
     return this.equipmentService.update(id, body);
