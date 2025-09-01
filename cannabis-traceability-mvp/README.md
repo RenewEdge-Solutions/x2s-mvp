@@ -5,48 +5,64 @@
 
 A local, containerized MVP web app demonstrating cannabis seed-to-sale traceability concepts with a simple Apple-style UI.
 
-## 🛠️ Tech Stack
+# 🧩 Cannabis Traceability MVP – App Stack
 
-- **Backend**: NestJS (TypeScript) + TypeORM + PostgreSQL
-- **Frontend**: React (TypeScript) + Vite + Tailwind CSS
-- **Auth**: Mock login + mock 2FA
-- **Roles**: Regulator, Operator, Auditor
+This folder contains the full stack (backend + multiple frontends) for local development via Docker or direct node.
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Docker)
 
-### 1. Setup Environment
-```bash
-cp backend/.env.example backend/.env
-```
-
-### 2. Build and Run
 ```bash
 docker compose up --build
 ```
 
-### 3. Access the Application
-- **App**: [http://localhost:3000](http://localhost:3000)
-- **API**: [http://localhost:3001](http://localhost:3001)
+Services and ports:
+- Regulator Frontend: http://localhost:2000 (container 5000; HMR 24679)
+- Auditor Frontend: http://localhost:4000
+- Backend API (NestJS): http://localhost:3001
+- PostgreSQL: host 5433 → container 5432
 
-## 📊 Demo Credentials
+Notes:
+- macOS can reserve :5000 for AirPlay. Regulator app maps to :2000 to avoid conflicts.
+- If you run another Vite app, ensure HMR ports don’t clash (regulator uses 24679).
 
-| Role | Username | Password | 2FA Code |
-|------|----------|----------|----------|
-| Operator (Farmer) | Farmer | 1234 | Any 6 digits |
-| Regulator | Regulator | 1234 | Any 6 digits |
-| Auditor | Auditor | 1234 | Any 6 digits |
-| Operator (Shop) | Shop | 1234 | Any 6 digits |
-| Operator (Lab) | Lab | 1234 | Any 6 digits |
+## 🧪 Running Locally (without Docker)
 
-## ✨ Features
+Backend:
+```bash
+cd backend
+npm install
+npm run start:dev
+```
 
-- **Role Dashboards**: Mock KPIs and alerts based on user role
-- **Operator Wizard**: Plant seed → Harvest crop workflow
-- **Lifecycle Explorer**: Merged timeline of plant + harvest events
-- **Blockchain Integrity**: Server SHA-256 hashes with local verification
-- **Facilities Management**: Browse and manage locations, structures, and equipment
+Frontends (in separate terminals):
+```bash
+cd regulator-frontend && npm install && npm run dev
+cd auditor-frontend && npm install && npm run dev
+```
 
-## 📋 Example Flow
+## 🗺️ Google Maps Integration (optional)
+
+Both frontends support Maps-based location picking.
+
+1) Create `.env` in each frontend:
+```env
+VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
+```
+
+2) Enable in Google Cloud Console:
+- Maps JavaScript API
+- Places API
+- Geocoding API
+
+3) Add referrer restrictions:
+- http://localhost:*/*
+- http://127.0.0.1:*/*
+
+## 📝 Recent UI Changes
+
+- Regulator dashboard simplified to only show “Welcome, Regula Tor”.
+- Regulator calendar keeps UI but shows an empty calendar (no DB-backed events).
+- Auditor calendar adds mock “Add Event” and “Sync” buttons (local-only behavior).
 
 1. 🔐 Login as `Farmer` / `1234` (2FA: any 6 digits)
 2. 🧙‍♂️ Open Wizard

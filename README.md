@@ -4,7 +4,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 
-A full-stack MVP for cannabis traceability with role-based dashboards, calendar, inventory, integrity (hashing), and demo data. Runs locally with Docker or directly.
+A full-stack MVP for cannabis traceability with role-based dashboards, calendars, inventory, integrity (hashing), and demo data. Runs locally with Docker or directly.
 
 ## 📋 Table of Contents
 
@@ -23,82 +23,55 @@ A full-stack MVP for cannabis traceability with role-based dashboards, calendar,
 
 ## 🚀 Quick Start
 
-1. **Clone the repository**
+1. Clone and start
    ```bash
    git clone https://github.com/RenewEdge-Solutions/x2s-mvp.git
-   cd x2s-mvp
-   ```
-
-2. **Run with Docker (Recommended)**
-   ```bash
-   cd cannabis-traceability-mvp
+   cd x2s-mvp/cannabis-traceability-mvp
    docker compose up --build
    ```
-   - App: [http://localhost:3000](http://localhost:3000)
-   - API: [http://localhost:3001](http://localhost:3001)
 
-3. **Or run locally**
-   - Follow [Backend Setup](#-backend-setup) and [Frontend Setup](#-frontend-setup)
+2. Access services
+   - Regulator Frontend: http://localhost:2000 (HMR: 24679)
+   - Auditor Frontend: http://localhost:4000
+   - Backend API: http://localhost:3001
+   - PostgreSQL: localhost:5433 (container 5432)
 
 ## 🛠️ Tech Stack
 
 | Component | Technology |
 |-----------|------------|
-| **Backend** | NestJS 10 + TypeORM + PostgreSQL |
-| **Frontend** | React 18 + Vite + TypeScript + Tailwind CSS |
-| **Database** | PostgreSQL 14 |
-| **Container** | Docker Compose |
-| **Documentation** | Swagger |
+| Backend | NestJS 10 + TypeORM + PostgreSQL |
+| Frontends | React 18 + Vite + TypeScript + Tailwind CSS |
+| Database | PostgreSQL 14 |
+| Container | Docker Compose |
+| Docs | Swagger |
 
 ## ✨ Features
 
-### 🔐 Authentication & Roles
-- Mock authentication with 2FA prompt
-- User profiles and role-based access
-- **Roles**: Operator, Grower, Shop, Lab, Regulator, Auditor
+- Authentication & roles (mock 2FA). Roles: Operator, Grower, Shop, Lab, Regulator, Auditor
+- Dashboards, lifecycle explorer, integrity hashing, calendars, inventory
 
-### 📊 Dashboards
-- **KPIs**: Active plants, Vegetative, Flower, Drying, Harvested, Storage, Sold, Revenue
-- **Shortcuts**: Urgent (🔴) and Soon (🟡) actions per location
-- **Recent Activity**: Plant, Drying & Storage, Harvest & Revenue feeds
-- **Upcoming Events**: Vertical calendar view
-
-### 📅 Calendar
-- Month grid view with plant/harvest/drying/check events
-- Hover details for event information
-
-### 📦 Inventory Management
-- Plants in production tracking
-- Harvest lots management
-- Supplies and packaging inventory
-
-### 🔒 Integrity Verification
-- Blockchain-style hashing view
-- Visible only to Regulator/Auditor roles
-
-### 📈 Event History
-- Lifecycle explorer for plant and harvest events
+Recent UI changes (MVP simplifications):
+- Regulator dashboard: minimal “Welcome, Regula Tor” only
+- Regulator calendar: UI preserved, no database-backed events (empty calendar)
+- Auditor calendar: mock “Add Event” and “Sync” buttons with local-only behavior
 
 ## 📁 Project Structure
 
 ```
 x2s-mvp/
 ├── cannabis-traceability-mvp/
-│   ├── backend/          # NestJS API server
-│   ├── frontend/         # React application
+│   ├── backend/              # NestJS API server (3001)
+│   ├── regulator-frontend/   # Regulator app (host 2000 → container 5000, HMR 24679)
+│   ├── auditor-frontend/     # Auditor app (host 4000)
 │   └── docker-compose.yml
-├── docs/                 # Architecture & proposal docs
+├── docs/
 └── README.md
 ```
 
 ## 🔧 Backend Setup
 
-### Prerequisites
-- Node.js 18+
-- PostgreSQL 14
-
-### Configuration
-Create `.env` file in `backend/` directory:
+Create `backend/.env` with:
 
 ```env
 POSTGRES_HOST=localhost
@@ -109,7 +82,7 @@ POSTGRES_DB=traceability
 PORT=3001
 ```
 
-### Running Locally
+Run locally:
 
 ```bash
 cd cannabis-traceability-mvp/backend
@@ -118,45 +91,23 @@ npm run build
 npm run start:dev
 ```
 
-### API Documentation
-- Swagger UI: [http://localhost:3001/docs](http://localhost:3001/docs)
-- Key endpoints: `/plants`, `/harvests`, `/lifecycle`, `/integrity`, `/auth`
+Swagger: http://localhost:3001/docs
 
-### Seeding Demo Data
+Seed demo data:
 
 ```bash
 cd cannabis-traceability-mvp/backend
 npm run seed
 ```
 
-Creates ~250 plants across 20 greenhouses + 5 indoor rooms with demo data.
-
-## 🎨 Frontend Setup
-
-### Prerequisites
-- Node.js 18+
-
-### Running Locally
+## 🎨 Frontend Setup (local, optional)
 
 ```bash
-cd cannabis-traceability-mvp/frontend
-npm install
-npm run dev
+cd cannabis-traceability-mvp/regulator-frontend && npm install && npm run dev
+cd cannabis-traceability-mvp/auditor-frontend && npm install && npm run dev
 ```
 
-Open the URL displayed (usually [http://localhost:5173](http://localhost:5173))
-
-### Google Maps Integration
-For location features, set up Google Maps API:
-
-1. Create `.env` in `frontend/`:
-   ```env
-   VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
-   ```
-
-2. Enable APIs: Maps JavaScript API, Places API, Geocoding API
-
-3. Add referrer restrictions for localhost
+Google Maps (optional): set `VITE_GOOGLE_MAPS_API_KEY` in each frontend `.env`.
 
 ## 🐳 Docker Setup
 
@@ -165,10 +116,11 @@ cd cannabis-traceability-mvp
 docker compose up --build
 ```
 
-Services:
-- **Frontend**: Port 3000
-- **Backend**: Port 3001
-- **Database**: Port 5432 (mapped to host 5433)
+Mapped ports:
+- Regulator Frontend: 2000 → 5000 (HMR 24679)
+- Auditor Frontend: 4000 → 4000
+- Backend API: 3001 → 3001
+- PostgreSQL: 5433 → 5432
 
 ## 📊 Demo Accounts
 
@@ -183,35 +135,22 @@ Services:
 
 ## 📝 Notes
 
-- Integrity view is restricted to Regulator/Auditor roles
-- Calendar and KPIs use configurable heuristics
-- Alcohol/Mushrooms/Explosives modules are placeholders
-- Navigation: Dashboard, Plants, Inventory, Calendar
+- macOS may reserve port 5000 for AirPlay. We map the regulator app to host port 2000 to avoid conflicts
+- If another Vite app is running, ensure HMR ports don’t clash (regulator uses 24679)
 
 ## 🔍 Troubleshooting
 
-### Database Connection Issues
-- Ensure PostgreSQL is running on port 5433
-- Check `.env` configuration
-- For Docker: verify port mapping
-
-### Port Conflicts
-- Frontend: 5173 (Vite default)
-- Backend: 3001
-- Database: 5433 (host) / 5432 (container)
-
-### Google Maps Errors
-- Verify API key is valid and unrestricted for localhost
-- Check browser console for specific errors
+- Database: ensure host 5433 is free; container exposes 5432
+- Backend: http://localhost:3001 should be reachable; check `docker compose logs backend`
+- Frontends: if hot reload loops, verify HMR port 24679 is free and exposed
+- Google Maps: set `VITE_GOOGLE_MAPS_API_KEY` and allow localhost referrers
 
 ## 🗺️ Roadmap
 
 - [ ] POS flows for Shop role
 - [ ] Lab result entry and COA hashing
 - [ ] Enhanced role guards
-- [ ] Rich notifications system
-- [ ] ICS calendar export
-- [ ] Week/Day calendar views
+- [ ] ICS calendar export; Week/Day calendar views
 - [ ] Transfer/manifest management
 - [ ] Regulator audit tools
 
@@ -225,4 +164,4 @@ Services:
 
 ---
 
-**Built with ❤️ by RenewEdge Solutions**
+Built with ❤️ by RenewEdge Solutions
