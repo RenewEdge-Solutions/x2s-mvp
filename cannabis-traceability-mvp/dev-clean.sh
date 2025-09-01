@@ -15,12 +15,7 @@ docker builder prune -f
 
 ## Generic frontend removed; no cleaning needed here
 
-# Clean backend  
-echo "⚙️ Cleaning backend..."
-cd backend
-rm -rf dist
-rm -f tsconfig.tsbuildinfo
-cd ..
+## Backend removed; no cleaning step required
 
 # No generic frontend volume to clean anymore
 

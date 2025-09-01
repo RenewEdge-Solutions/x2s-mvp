@@ -16,8 +16,7 @@ services:
       DEBUG: 'vite:*'
     ports:
       - "4000:4000"
-    depends_on:
-      - backend
+  # backend removed; no dependency
     volumes:
       - ./auditor-frontend:/app
       - auditor_node_modules:/app/node_modules
@@ -36,8 +35,7 @@ services:
     ports:
       - "2000:5000"
       - "24679:24679"
-    depends_on:
-      - backend
+  # backend removed; no dependency
     volumes:
       - ./regulator-frontend:/app
       - regulator_node_modules:/app/node_modules
@@ -58,23 +56,5 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
-  backend:
-    build:
-      context: ./backend
-    env_file:
-      - ./backend/.env
-    # Map backend to host 3001 to match README specifications
-    ports:
-      - "3001:3001"
-      - "9229:9229"  # Debug port for Node.js debugging
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - DEBUG=*
-    command: npm run start:dev
+  # backend service removed
 

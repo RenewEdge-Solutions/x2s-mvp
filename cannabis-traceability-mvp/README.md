@@ -7,7 +7,7 @@ A local, containerized MVP web app demonstrating cannabis seed-to-sale traceabil
 
 # 🧩 Cannabis Traceability MVP – App Stack
 
-This folder contains the full stack (backend + multiple frontends) for local development via Docker or direct node.
+This folder contains multiple frontends for local development via Docker or direct node.
 
 ## 🚀 Quick Start (Docker)
 
@@ -18,7 +18,6 @@ docker compose up --build
 Services and ports:
 - Regulator Frontend: http://localhost:2000 (container 5000; HMR 24679)
 - Auditor Frontend: http://localhost:4000
-- Backend API (NestJS): http://localhost:3001
 - PostgreSQL: host 5433 → container 5432
 
 Notes:
@@ -27,12 +26,7 @@ Notes:
 
 ## 🧪 Running Locally (without Docker)
 
-Backend:
-```bash
-cd backend
-npm install
-npm run start:dev
-```
+Backend has been removed from this setup.
 
 Frontends (in separate terminals):
 ```bash
@@ -73,12 +67,9 @@ VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
 ## ⚙️ Configuration
 
 ### Ports
-- **Backend**: 3001
 - **PostgreSQL**: 5432
 
 ### Development Notes
-- TypeORM `synchronize=true` for development only
-- Minimal data fixtures for DB connectivity demonstration
 - Mock authentication (no persistent sessions)
 
 ## 🚨 Limitations
