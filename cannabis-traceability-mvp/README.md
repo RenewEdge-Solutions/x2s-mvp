@@ -73,7 +73,6 @@ VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
 ## ⚙️ Configuration
 
 ### Ports
-- **Frontend**: 3000
 - **Backend**: 3001
 - **PostgreSQL**: 5432
 

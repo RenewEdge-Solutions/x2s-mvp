@@ -1,7 +1,6 @@
 # Volumes for persistent data and node_modules
 volumes:
   postgres-data:
-  frontend_node_modules:
   auditor_node_modules:
   regulator_node_modules:
 version: '3.9'  # Note: version field is deprecated but kept for compatibility

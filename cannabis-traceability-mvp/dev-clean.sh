@@ -13,13 +13,7 @@ echo "🐳 Cleaning Docker build cache..."
 docker system prune -f
 docker builder prune -f
 
-# Clean frontend
-echo "🎨 Cleaning frontend..."
-cd frontend
-rm -rf node_modules/.vite
-rm -rf dist
-rm -f tsconfig.tsbuildinfo
-cd ..
+## Generic frontend removed; no cleaning needed here
 
 # Clean backend  
 echo "⚙️ Cleaning backend..."
@@ -28,8 +22,6 @@ rm -rf dist
 rm -f tsconfig.tsbuildinfo
 cd ..
 
-# Clean Docker volumes
-echo "💾 Cleaning Docker volumes..."
-docker volume rm cannabis-traceability-mvp_frontend_node_modules 2>/dev/null || true
+# No generic frontend volume to clean anymore
 
 echo "✅ Clean complete! Run 'docker-compose up --build' to restart fresh."

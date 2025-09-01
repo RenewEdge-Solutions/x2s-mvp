@@ -52,7 +52,6 @@ window.debugApp.api()
 ```
 
 ## 🐛 Debugging Ports
-- **Frontend**: http://localhost:3000
 - **Backend**: http://localhost:3001
 - **API Docs**: http://localhost:3001/docs
 - **Node.js Debug**: localhost:9229 (for IDE debugging)
@@ -61,12 +60,7 @@ window.debugApp.api()
 ## 🧹 Cleaning Commands
 
 ### Frontend Cleaning
-```bash
-cd frontend
-npm run clean          # Clean build artifacts
-npm run reset          # Clean + reinstall dependencies
-npm run dev:clean       # Clean + start development
-```
+The generic `frontend` has been removed. Use the specific apps instead (auditor-frontend, regulator-frontend).
 
 ### Backend Cleaning
 ```bash
@@ -85,11 +79,7 @@ docker system prune -f # Clean Docker cache
 ## 📝 Development Scripts Summary
 
 ### Frontend Scripts
-- `npm run dev` - Standard development server
-- `npm run dev:debug` - Enhanced debugging mode
-- `npm run dev:clean` - Clean start
-- `npm run clean` - Clean build artifacts
-- `npm run reset` - Clean + reinstall
+Use scripts within each specific frontend folder.
 
 ### Backend Scripts
 - `npm run start:dev` - Standard watch mode
@@ -117,7 +107,6 @@ docker system prune -f # Clean Docker cache
 - Full reset: `./dev-clean.sh`
 
 ## 📊 File Watching Optimizations
-- **Frontend**: Uses polling with 50ms intervals for instant updates
 - **Backend**: Uses fsEvents on macOS for efficient file watching
 - **Docker**: Volume mounts exclude build directories to prevent conflicts
 - **TypeScript**: Incremental compilation disabled for fresh builds
