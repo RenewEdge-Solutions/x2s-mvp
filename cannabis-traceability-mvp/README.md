@@ -18,7 +18,6 @@ docker compose up --build
 Services and ports:
 - Regulator Frontend: http://localhost:2000 (container 5000; HMR 24679)
 - Auditor Frontend: http://localhost:4000
-- PostgreSQL: host 5433 → container 5432
 
 Notes:
 - macOS can reserve :5000 for AirPlay. Regulator app maps to :2000 to avoid conflicts.
@@ -67,7 +66,7 @@ VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
 ## ⚙️ Configuration
 
 ### Ports
-- **PostgreSQL**: 5432
+None specific beyond the frontends above.
 
 ### Development Notes
 - Mock authentication (no persistent sessions)
