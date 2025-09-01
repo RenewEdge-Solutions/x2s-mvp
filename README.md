@@ -31,7 +31,7 @@ A full-stack MVP for cannabis traceability with role-based dashboards, calendars
    ```
 
 2. Access services
-   - Regulator Frontend: http://localhost:2000 (HMR: 24679)
+   - Regulator Frontend: http://localhost:2000 (Vite dev on 5000 inside container, HMR: 24679)
    - Auditor Frontend: http://localhost:4000
    - Backend API: http://localhost:3001
    - PostgreSQL: localhost:5433 (container 5432)
@@ -51,10 +51,14 @@ A full-stack MVP for cannabis traceability with role-based dashboards, calendars
 - Authentication & roles (mock 2FA). Roles: Operator, Grower, Shop, Lab, Regulator, Auditor
 - Dashboards, lifecycle explorer, integrity hashing, calendars, inventory
 
-Recent UI changes (MVP simplifications):
-- Regulator dashboard: minimal “Welcome, Regula Tor” only
-- Regulator calendar: UI preserved, no database-backed events (empty calendar)
-- Auditor calendar: mock “Add Event” and “Sync” buttons with local-only behavior
+Recent MVP updates (mocked, bill-aligned):
+- Regulator dashboard: comprehensive hardcoded oversight (KPIs, licensing, applications, compliance alerts, enforcement, recalls, lab oversight, manifests, blockchain integrity, tasks, reporting links)
+- Regulator calendar: realistic mock events aligned with dashboard (inspections, hearings, recalls, lab follow-ups, manifests, renewals)
+- Regulator notifications: database calls removed; hardcoded alerts/tasks matching dashboard
+- Calendars: consistent icon-only toolbar buttons (Today, Sync, Add) and scrollable day cells (max ~3 visible events) across regulator, farmer, and auditor
+- Auditor calendar: button order set to “Sync” then “Add”
+- Farmer calendar: event create/update aligned to API schema; resilient mapping for custom events
+- Regulator reports: page aligned to the bill with grouped, static report categories; mock download and snapshot actions
 
 ## 📁 Project Structure
 
@@ -64,6 +68,7 @@ x2s-mvp/
 │   ├── backend/              # NestJS API server (3001)
 │   ├── regulator-frontend/   # Regulator app (host 2000 → container 5000, HMR 24679)
 │   ├── auditor-frontend/     # Auditor app (host 4000)
+│   ├── frontend/             # Farmer/Operator app (local dev 3000)
 │   └── docker-compose.yml
 ├── docs/
 └── README.md
@@ -105,6 +110,7 @@ npm run seed
 ```bash
 cd cannabis-traceability-mvp/regulator-frontend && npm install && npm run dev
 cd cannabis-traceability-mvp/auditor-frontend && npm install && npm run dev
+cd cannabis-traceability-mvp/frontend && npm install && npm run dev
 ```
 
 Google Maps (optional): set `VITE_GOOGLE_MAPS_API_KEY` in each frontend `.env`.
@@ -121,6 +127,7 @@ Mapped ports:
 - Auditor Frontend: 4000 → 4000
 - Backend API: 3001 → 3001
 - PostgreSQL: 5433 → 5432
+ - Farmer/Operator Frontend: run locally at http://localhost:3000 (not in docker-compose)
 
 ## 📊 Demo Accounts
 
@@ -142,7 +149,7 @@ Mapped ports:
 
 - Database: ensure host 5433 is free; container exposes 5432
 - Backend: http://localhost:3001 should be reachable; check `docker compose logs backend`
-- Frontends: if hot reload loops, verify HMR port 24679 is free and exposed
+- Regulator Frontend: if hot reload loops, verify HMR port 24679 is free and exposed
 - Google Maps: set `VITE_GOOGLE_MAPS_API_KEY` and allow localhost referrers
 
 ## 🗺️ Roadmap
