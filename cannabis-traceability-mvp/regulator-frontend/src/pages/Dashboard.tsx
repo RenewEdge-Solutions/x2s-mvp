@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BadgeCheck, FileBarChart2, Scale, Shield, Calendar as CalendarIcon, Workflow, Sparkles, Waypoints, ClipboardList, AlertTriangle, Beaker, Truck, Activity, Building2, Users } from 'lucide-react';
+import { BadgeCheck, FileBarChart2, Scale, Shield, ShieldCheck, Calendar as CalendarIcon, Workflow, Sparkles, Waypoints, ClipboardList, AlertTriangle, Beaker, Activity, Building2, Users } from 'lucide-react';
 import Card from '../components/Card';
 import KPI from '../components/KPI';
 import { Link } from 'react-router-dom';
@@ -8,12 +8,12 @@ import { api } from '../lib/api';
 export default function Dashboard() {
   // Static demo metrics (mock-first, no backend required)
   const kpis = [
-    { label: 'Active licenses', value: 128, icon: <Scale className="h-5 w-5" aria-hidden /> },
-    { label: 'Facilities', value: 42, icon: <Building2 className="h-5 w-5" aria-hidden /> },
-    { label: 'Open investigations', value: 3, icon: <Shield className="h-5 w-5" aria-hidden /> },
-    { label: 'Batches awaiting COA', value: 11, icon: <ClipboardList className="h-5 w-5" aria-hidden /> },
-    { label: 'Compliance alerts', value: 6, icon: <AlertTriangle className="h-5 w-5" aria-hidden /> },
-    { label: 'COA pass rate', value: '93%', icon: <Beaker className="h-5 w-5" aria-hidden /> },
+  { label: 'Active licenses', value: 128, icon: <Scale className="h-5 w-5" aria-hidden />, to: '/licensing' },
+  { label: 'Facilities', value: 42, icon: <Building2 className="h-5 w-5" aria-hidden />, to: '/facilities' },
+  { label: 'Open investigations', value: 3, icon: <Shield className="h-5 w-5" aria-hidden />, to: '/facilities' },
+  { label: 'Batches awaiting COA', value: 11, icon: <ClipboardList className="h-5 w-5" aria-hidden />, to: '/lifecycle' },
+  { label: 'Compliance alerts', value: 6, icon: <AlertTriangle className="h-5 w-5" aria-hidden />, to: '/facilities' },
+  { label: 'COA pass rate', value: '93%', icon: <Beaker className="h-5 w-5" aria-hidden />, to: '/reports' },
   ];
 
   // License mix by type (mocked)
@@ -30,39 +30,81 @@ export default function Dashboard() {
     batches: { awaitingCoa: 11, failed7d: 1, readyForSale: 76 },
   };
 
-  // Recent movements (mocked)
-  const transfers = [
-    { id: 't-9001', from: 'Farm HQ', to: 'Lab Nova', items: 3, status: 'In transit', ts: '10:21' },
-    { id: 't-9002', from: 'Processor A', to: 'Retail East', items: 5, status: 'Received', ts: '09:55' },
-    { id: 't-9003', from: 'Farm West', to: 'Lab Nova', items: 2, status: 'Picked up', ts: '08:40' },
-  ];
+  // Recent movements removed per request (card removed)
 
   // Alerts (mocked)
-  type OccupancyRow = { structureId: string; structure: string; facility: string; occupied: number; capacity: number };
   type EventLite = { id: number; title: string; eventType: string; startDate: string };
-  const [occupancy, setOccupancy] = useState<OccupancyRow[]>([]);
   const [events, setEvents] = useState<EventLite[]>([]);
+  const [integrity, setIntegrity] = useState<{ total: number; verified: number; mismatched: number }>({ total: 0, verified: 0, mismatched: 0 });
+
+  async function sha256Hex(input: string): Promise<string> {
+    const enc = new TextEncoder();
+    const buf = await crypto.subtle.digest('SHA-256', enc.encode(input));
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
 
   useEffect(() => {
     // Load light-weight mock data from the API layer where available
-  api.getAllOccupancy().then((rows) => setOccupancy((rows as OccupancyRow[]).slice(0, 4)));
-  api.getEvents().then((evts) => setEvents((evts as EventLite[]).slice(0, 4)));
+  api.getEvents().then((evts) => setEvents((evts as EventLite[])));
+  api.getIntegrity().then(async (rows: any[]) => {
+      try {
+        const checks = await Promise.all(rows.map(async (r) => {
+          const local = await sha256Hex(JSON.stringify(r.payload));
+          return local === (r.hash ?? '');
+        }));
+        const total = rows.length;
+        const verified = checks.filter(Boolean).length;
+        const mismatched = total - verified;
+        setIntegrity({ total, verified, mismatched });
+      } catch {
+        setIntegrity({ total: rows?.length ?? 0, verified: rows?.length ?? 0, mismatched: 0 });
+      }
+    });
   }, []);
 
+  // Featured inspection/schedule items (mocked, merged before API events)
+  function daysFromNow(n: number) {
+    const d = new Date(Date.now() + n * 86400000);
+    return d.toISOString();
+  }
+  const featuredEvents: EventLite[] = [
+    { id: -1, title: 'COA Due: Batch B-23-115', eventType: 'deadline', startDate: daysFromNow(4) },
+    { id: -2, title: 'Enforcement Action Review', eventType: 'meeting', startDate: daysFromNow(4) },
+    { id: -3, title: 'Follow-up CAPA', eventType: 'task', startDate: daysFromNow(6) },
+    { id: -4, title: 'Compliance Audit: Regulatory Office', eventType: 'audit', startDate: daysFromNow(7) },
+    { id: -5, title: 'Sampling: Authority HQ', eventType: 'sampling', startDate: daysFromNow(7) },
+    { id: -6, title: 'License Renewal Checkpoint', eventType: 'deadline', startDate: daysFromNow(8) },
+    { id: -7, title: 'Inspection: Accredited Lab SLU', eventType: 'inspection', startDate: daysFromNow(8) },
+    { id: -8, title: 'Recall Follow-up: Batch B-23-108', eventType: 'task', startDate: daysFromNow(9) },
+  ];
+  const visibleEvents = [...featuredEvents, ...events];
+
+  const expiringLicenses = [
+    { id: 'L-1201', name: 'Green Fields Co.', cls: 'Cultivation', days: 7 },
+    { id: 'L-1187', name: 'Medicanna Labs', cls: 'Laboratory', days: 12 },
+    { id: 'L-1143', name: 'Sunrise Processing', cls: 'Manufacturing', days: 15 },
+    { id: 'L-1110', name: 'Harbor Dispensary', cls: 'Retail', days: 22 },
+    { id: 'L-1099', name: 'West Ridge Farm', cls: 'Cultivation', days: 28 },
+    { id: 'L-1210', name: 'Coastal Botanicals', cls: 'Cultivation', days: 5 },
+    { id: 'L-1211', name: 'Island Wellness', cls: 'Retail', days: 9 },
+    { id: 'L-1212', name: 'Pure Extracts Inc.', cls: 'Manufacturing', days: 16 },
+    { id: 'L-1213', name: 'North Shore Labs', cls: 'Laboratory', days: 19 },
+  ];
+
   return (
-    <div className="space-y-6">
+  <div className="space-y-4">
   {/* Page header removed per request */}
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
         {kpis.map((k) => (
-          <KPI key={k.label} label={k.label} value={k.value} icon={<div className="text-emerald-600">{k.icon}</div>} />
+          <KPI key={k.label} label={k.label} value={k.value} icon={<div className="text-emerald-600">{k.icon}</div>} to={k.to} />
         ))}
       </div>
 
-      {/* License overview + Quick actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2" title="License overview" subtitle="Mix by type and status">
+      {/* License overview */}
+      <div className="grid grid-cols-1 gap-4">
+        <Card title="License overview" to="/licensing">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
             {licenseMix.map((lic) => (
               <div key={lic.type} className="rounded-lg border border-gray-200 p-3">
@@ -76,7 +118,7 @@ export default function Dashboard() {
                 <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
                   <StatusStat label="Active" value={lic.active} tone="emerald" />
                   <StatusStat label="Pending" value={lic.pending} tone="amber" />
-                  <StatusStat label="Susp." value={lic.suspended} tone="rose" />
+                  <StatusStat label="Suspended" value={lic.suspended} tone="rose" />
                   <StatusStat label="Expired" value={lic.expired} tone="gray" />
                 </div>
                 <div className="mt-3">
@@ -93,19 +135,11 @@ export default function Dashboard() {
             ))}
           </div>
         </Card>
-        <Card title="Quick actions">
-          <div className="grid grid-cols-1 gap-2 text-sm">
-            <QuickLink icon={<Sparkles className="h-4 w-4" />} label="Licensing wizard" to="/wizard" />
-            <QuickLink icon={<CalendarIcon className="h-4 w-4" />} label="Compliance calendar" to="/calendar" />
-            <QuickLink icon={<FileBarChart2 className="h-4 w-4" />} label="Generate reports" to="/reports" />
-            <QuickLink icon={<Workflow className="h-4 w-4" />} label="Trace lifecycle" to="/lifecycle" />
-          </div>
-        </Card>
       </div>
 
       {/* Pipeline + Compliance alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2" title="Production pipeline" subtitle="Plants, batches, and testing">
+  <Card className="lg:col-span-2" title="Production pipeline" to="/lifecycle">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <h4 className="text-xs font-medium text-gray-700">Plants by stage</h4>
@@ -125,76 +159,89 @@ export default function Dashboard() {
             </div>
           </div>
         </Card>
-        <Card title="Compliance & alerts" subtitle="Exceptions requiring attention">
-          <ul className="mt-1 space-y-2 text-sm text-gray-700">
-            <li className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden />
-              <span>11 batches awaiting COA across 4 labs</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 text-rose-600" aria-hidden />
-              <span>1 batch failed pesticide limits in last 7 days</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <BadgeCheck className="mt-0.5 h-4 w-4 text-emerald-600" aria-hidden />
-              <span>0 public recalls open</span>
-            </li>
-          </ul>
+  <Card title="Compliance & alerts" to="/facilities">
+          <div className="mt-1 max-h-[160px] overflow-auto pr-1">
+            <ul className="space-y-2 text-sm text-gray-700">
+              <li className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden />
+                <span>11 batches awaiting COA across 4 labs</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-rose-600" aria-hidden />
+                <span>1 batch failed pesticide limits in last 7 days</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <BadgeCheck className="mt-0.5 h-4 w-4 text-emerald-600" aria-hidden />
+                <span>0 public recalls open</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden />
+                <span>2 labs over SLA turnaround time</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden />
+                <span>1 facility over capacity threshold</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden />
+                <span>3 overdue CAPA actions</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden />
+                <span>2 missing seed lot documents</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-rose-600" aria-hidden />
+                <span>1 suspected diversion flagged</span>
+              </li>
+            </ul>
+          </div>
         </Card>
       </div>
 
-      {/* Utilization + Schedule + Movements */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <Card className="xl:col-span-2" title="Facility utilization" subtitle="Occupancy vs capacity (sample)">
-          <div className="space-y-3">
-            {occupancy.map((o) => (
-              <div key={o.structureId} className="">
-                <div className="flex items-center justify-between text-xs text-gray-600">
-                  <div className="inline-flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-emerald-600" aria-hidden />
-                    <span className="text-gray-800">{o.facility} / {o.structure}</span>
+  {/* Facility utilization card removed per request */}
+
+      {/* Three-up row: Inspections, Licenses expiring, Blockchain */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card title="Inspections & schedule" to="/calendar">
+          <div className="mt-1 max-h-[160px] overflow-auto pr-1">
+            <ul className="space-y-2 text-sm text-gray-700">
+              {visibleEvents.map((e) => (
+                <li key={e.id} className="flex items-start justify-between gap-2">
+                  <div className="inline-flex items-start gap-2 min-w-0">
+                    <CalendarIcon className="mt-0.5 h-4 w-4 text-emerald-600 flex-shrink-0" aria-hidden />
+                    <span className="font-medium truncate">{e.title}</span>
                   </div>
-                  <span>
-                    {o.occupied}/{o.capacity}
-                  </span>
-                </div>
-                <Progress value={o.occupied} max={o.capacity} />
-              </div>
-            ))}
-            {occupancy.length === 0 && (
-              <div className="text-xs text-gray-500">No occupancy data available.</div>
-            )}
+                  <span className="text-xs text-gray-500 whitespace-nowrap tabular-nums ml-2">{new Date(e.startDate).toLocaleDateString()}</span>
+                </li>
+              ))}
+              {visibleEvents.length === 0 && <li className="text-xs text-gray-500">No scheduled items.</li>}
+            </ul>
           </div>
         </Card>
-        <div className="space-y-4">
-          <Card title="Inspections & schedule" subtitle="Next 4 items">
-            <ul className="mt-1 space-y-2 text-sm text-gray-700">
-              {events.map((e) => (
-                <li key={e.id} className="flex items-start gap-2">
-                  <CalendarIcon className="mt-0.5 h-4 w-4 text-emerald-600" aria-hidden />
-                  <span>
-                    <span className="font-medium">{e.title}</span>
-                    <span className="text-gray-500"> • {new Date(e.startDate).toLocaleDateString()}</span>
-                  </span>
-                </li>
-              ))}
-              {events.length === 0 && <li className="text-xs text-gray-500">No scheduled items.</li>}
-            </ul>
-          </Card>
-          <Card title="Recent movements" subtitle="Transfers & deliveries">
-            <ul className="mt-1 space-y-2 text-sm text-gray-700">
-              {transfers.map((t) => (
-                <li key={t.id} className="flex items-center justify-between gap-2">
+        <Card title="Licenses expiring soon" to="/licensing">
+          <div className="mt-1 max-h-[160px] overflow-auto pr-1">
+            <ul className="space-y-2 text-sm text-gray-700">
+              {expiringLicenses.map((l) => (
+                <li key={l.id} className="flex items-center justify-between gap-2">
                   <div className="inline-flex items-center gap-2">
-                    <Truck className="h-4 w-4 text-emerald-600" aria-hidden />
-                    <span>{t.from} → {t.to}</span>
+                    <Scale className="h-4 w-4 text-emerald-600" aria-hidden />
+                    <span className="font-medium text-gray-900">{l.name}</span>
+                    <span className="text-xs text-gray-500">{l.cls}</span>
                   </div>
-                  <span className="text-xs text-gray-500">{t.items} items • {t.status} • {t.ts}</span>
+                  <span className={`text-xs font-medium ${l.days <= 7 ? 'text-rose-700' : l.days <= 14 ? 'text-amber-700' : 'text-gray-500'}`}>{l.days}d</span>
                 </li>
               ))}
             </ul>
-          </Card>
-        </div>
+          </div>
+        </Card>
+        <Card title="Blockchain integrity" to="/integrity">
+          <div className="grid grid-cols-3 gap-3">
+            <MiniStat icon={<ShieldCheck className="h-4 w-4" />} label="Verified" value={integrity.verified} tone="emerald" />
+            <MiniStat icon={<Shield className="h-4 w-4" />} label="Mismatch" value={integrity.mismatched} tone={integrity.mismatched > 0 ? 'rose' : 'gray'} />
+            <MiniStat icon={<BadgeCheck className="h-4 w-4" />} label="Total" value={integrity.total} />
+          </div>
+        </Card>
       </div>
     </div>
   );

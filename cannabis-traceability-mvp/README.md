@@ -41,6 +41,31 @@ cd shop-frontend && npm install && npm run dev       # :9004
 cd laboratory-frontend && npm install && npm run dev # :9005
 ```
 
+## ✨ What’s new (Regulator Frontend)
+
+- Calendar
+	- Farmer-only events removed (harvest, transplant, drying checks).
+	- “Sync” and “New” buttons restyled to match the compact “Today” button.
+	- New events must be assigned to an operator; add/edit modals include a required Operator selector.
+- Operators
+	- “Schedule inspection” and “Notice of deficiency” now open realistic modals with structured inputs and mock persistence.
+	- Email hints removed from CTA labels for a cleaner, professional look.
+- Reports
+	- Buttons restyled to compact bordered style; snapshot creation shows a short processing delay then downloads an empty file.
+	- Automated reports consolidated, with per-item downloads (csv/pdf) using mock blobs.
+- Notifications
+	- Redesigned dropdown: grouped by category with titles, timestamps, operator chips, unread indicators, and quick actions.
+	- Realistic mock notifications synthesized (compliance, inspections, licensing, integrity, reports, capacity).
+- Profile
+	- Removed temporary API token section.
+	- Cleaned “(mock)” from subtitles.
+
+## 🔐 Demo Login
+
+- Username: Regulator
+- Password: 1234
+- 2FA: A rotating 6‑digit code shown in the mock device on login
+
 ## 🗺️ Google Maps Integration (optional)
 
 Both frontends support Maps-based location picking.
@@ -72,6 +97,8 @@ None specific beyond the frontends above.
 
 ### Development Notes
 - Mock authentication (no persistent sessions)
+- Mock data via local API layer
+- No backend required; all features are front-end only for demonstration
 
 ## 🚨 Limitations
 

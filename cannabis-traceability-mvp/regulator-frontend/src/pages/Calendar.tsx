@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Card from '../components/Card';
 import { useModule } from '../context/ModuleContext';
-import { Calendar as CalendarIcon, Plus, X, RefreshCw, Edit, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, X, RefreshCw, Edit, Trash2, ChevronDown, Loader2 } from 'lucide-react';
 import { computeEventsForCannabis, eventColor } from '../lib/calendar';
+import { api } from '../lib/api';
 
 export default function Calendar() {
   const { activeModule } = useModule();
@@ -19,22 +20,57 @@ export default function Calendar() {
   const [customEvents, setCustomEvents] = useState<any[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [wheelHour, setWheelHour] = useState(9);
   const [wheelMinute, setWheelMinute] = useState(0);
   const [wheelPeriod, setWheelPeriod] = useState<'AM' | 'PM'>('AM');
+  const [operators, setOperators] = useState<string[]>([]);
   const [eventForm, setEventForm] = useState({
     title: '',
     date: '',
     time: '',
-    description: ''
+    description: '',
+    operator: ''
   });
 
-  // Disable database fetching in regulator view; always clear any data
+  // Load minimal data for event computation plus regulator events
   useEffect(() => {
-    setPlants([]);
-    setHarvests([]);
-    setCustomEvents([]);
+    let cancelled = false;
+    async function load() {
+      if (activeModule !== 'cannabis') {
+        setPlants([]);
+        setHarvests([]);
+        setCustomEvents([]);
+        return;
+      }
+      const [pl, hv, ev, occ] = await Promise.all([
+        api.getPlants(),
+        api.getHarvests(),
+        api.getEvents(),
+        api.getAllOccupancy(),
+      ]);
+      if (cancelled) return;
+      setPlants(pl);
+      setHarvests(hv);
+      // Map API events to customEvents format for clickable details
+      setCustomEvents(
+        ev.map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          date: new Date(e.startDate),
+          label: e.title,
+          isCustom: true,
+          description: e.location ? `Location: ${e.location}` : undefined,
+          operator: e.metadata?.operator || '',
+        }))
+      );
+      // Derive operators from occupancy facilities
+      const facilities = Array.from(new Set(((occ || []) as any[]).map((o: any) => o.facility).filter(Boolean)));
+      setOperators(facilities);
+    }
+    load();
+    return () => { cancelled = true; };
   }, [activeModule]);
 
   // Handle opening specific event from URL parameter
@@ -71,15 +107,32 @@ export default function Calendar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showTimePicker]);
 
-  // Always render an empty calendar (no events) for regulator view
+  // Combine system-computed cultivation events with regulator scheduled items
   const events = useMemo(() => {
-    return [] as ReturnType<typeof computeEventsForCannabis>;
-  }, [cursor]);
+    // Exclude farmer-facing cultivation events from regulator calendar
+    const computed = computeEventsForCannabis(plants, harvests).filter((e: any) => !['harvest', 'transplant', 'drying-check'].includes(String(e?.type)));
+    return [
+      ...computed,
+      ...customEvents,
+    ] as any[];
+  }, [cursor, plants, harvests, customEvents]);
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Disabled in regulator view; keep UI but do not persist
-    alert('Add Event is disabled in the regulator calendar.');
+    if (!eventForm.operator) return; // require assignment
+    // Mock add: push into local customEvents only
+    const newId = Math.max(0, ...customEvents.map((c: any) => Number(c.id) || 0)) + 1;
+    const dateVal = eventForm.date ? new Date(eventForm.date) : new Date();
+    const newEv = {
+      id: newId,
+      title: eventForm.title,
+      date: dateVal,
+      label: eventForm.title,
+      isCustom: true,
+      description: eventForm.description,
+      operator: eventForm.operator,
+    };
+    setCustomEvents((prev) => [...prev, newEv]);
     resetModal();
   };
 
@@ -120,7 +173,8 @@ export default function Calendar() {
       title: '',
       date: '',
       time: '',
-      description: ''
+  description: '',
+  operator: ''
     });
   };
 
@@ -132,7 +186,8 @@ export default function Calendar() {
         title: event.title,
         date: event.date instanceof Date ? event.date.toISOString().split('T')[0] : event.date,
         time: event.time || '',
-        description: event.description || ''
+  description: event.description || '',
+  operator: event.operator || ''
       });
       setShowEventDetailModal(true);
     }
@@ -140,14 +195,17 @@ export default function Calendar() {
 
   const handleEditEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Editing events is disabled in the regulator calendar.');
+    // Mock edit: update local list
+    if (!selectedEvent) return;
+  setCustomEvents((prev) => prev.map((ev) => (ev.id === selectedEvent.id ? { ...ev, title: eventForm.title, description: eventForm.description, date: new Date(eventForm.date), operator: eventForm.operator } : ev)));
     setIsEditing(false);
     resetModal();
   };
 
   const handleDeleteEvent = async () => {
     if (!selectedEvent) return;
-    alert('Deleting events is disabled in the regulator calendar.');
+    // Mock delete
+    setCustomEvents((prev) => prev.filter((ev) => ev.id !== selectedEvent.id));
     resetModal();
   };
 
@@ -244,31 +302,73 @@ export default function Calendar() {
         <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2">
           <CalendarIcon className="h-6 w-6" aria-hidden /> Calendar
         </h1>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleSyncCalendar}
-            disabled={isSyncing}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors inline-flex items-center gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Syncing...' : 'Sync Calendar'}
-          </button>
-          <button
-            onClick={() => setShowAddEventModal(true)}
-            className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors inline-flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" /> Add Event
-          </button>
+    <div className="flex items-center gap-3">
+          <div className="relative">
+            <button
+              onClick={handleSyncCalendar}
+              disabled={isSyncing}
+      className="inline-flex items-center gap-1 px-2 py-1 border rounded-md text-sm text-gray-800 hover:bg-gray-50 disabled:opacity-60"
+            >
+              {isSyncing ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <RefreshCw className="h-4 w-4" aria-hidden />
+              )}
+              {isSyncing ? 'Syncing…' : 'Sync'}
+            </button>
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setAddOpen((o) => !o)}
+      className="inline-flex items-center gap-1 px-2 py-1 border rounded-md text-sm text-gray-800 hover:bg-gray-50"
+              aria-haspopup="menu"
+              aria-expanded={addOpen}
+            >
+              <Plus className="h-4 w-4" aria-hidden /> New <ChevronDown className={`h-4 w-4 transition-transform ${addOpen ? 'rotate-180' : ''}`} aria-hidden />
+            </button>
+            {addOpen && (
+              <div className="absolute right-0 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-50">
+                {[
+                  { label: 'Inspection', hint: 'Facility/site inspection' },
+                  { label: 'Compliance audit', hint: 'Process/records audit' },
+                  { label: 'Sampling', hint: 'Field or product sampling' },
+                  { label: 'COA due', hint: 'Certificate of analysis deadline' },
+                  { label: 'Follow-up CAPA', hint: 'Corrective action review' },
+                  { label: 'Enforcement action', hint: 'Notice, sanction, or seizure' },
+                ].map((opt) => (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => {
+                      setAddOpen(false);
+                      setEventForm({
+                        title: opt.label,
+                        date: new Date().toISOString().slice(0, 10),
+                        time: '',
+                        description: opt.hint,
+                        operator: '',
+                      });
+                      setShowAddEventModal(true);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <div className="font-medium">{opt.label}</div>
+                    <div className="text-[11px] text-gray-500">{opt.hint}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <button
-              className="px-2 py-1 border rounded-md text-sm"
+              className="px-2 py-1 border rounded-md text-sm hover:bg-gray-50"
               onClick={() => setCursor(new Date())}
               aria-label="Today"
             >
               Today
             </button>
             <button
-              className="px-2 py-1 border rounded-md text-sm"
+              className="px-2 py-1 border rounded-md text-sm hover:bg-gray-50"
               onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
               aria-label="Previous month"
             >
@@ -278,7 +378,7 @@ export default function Calendar() {
               {cursor.toLocaleString(undefined, { month: 'long', year: 'numeric' })}
             </div>
             <button
-              className="px-2 py-1 border rounded-md text-sm"
+              className="px-2 py-1 border rounded-md text-sm hover:bg-gray-50"
               onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
               aria-label="Next month"
             >
@@ -339,7 +439,7 @@ export default function Calendar() {
                   return (
                     <div
                       key={key}
-                      className={`min-h-[88px] border rounded-md p-1 ${isToday ? 'border-primary' : 'border-gray-200'} bg-white`}
+                      className={`min-h-[88px] border rounded-md p-1 ${isToday ? 'border-primary ring-1 ring-primary/20' : 'border-gray-200'} bg-white`}
                     >
                       <div className="text-xs text-gray-500 mb-1">{d ? d.getDate() : ''}</div>
                       <div className="space-y-1">
@@ -357,13 +457,13 @@ export default function Calendar() {
                               className={`group relative text-[11px] text-white px-1 py-0.5 rounded ${eventStyle} ${isCustomEvent ? 'cursor-pointer hover:bg-purple-600' : ''}`}
                             >
                               <span className="truncate block">{ev.label}</span>
-                              <div className="absolute left-0 top-full mt-1 hidden group-hover:block bg-black text-white text-[11px] px-2 py-1 rounded shadow-lg z-10 max-w-[200px]">
+                <div className="absolute left-0 top-full mt-1 hidden group-hover:block bg-gray-900 text-white text-[11px] px-2 py-1 rounded shadow-lg z-10 max-w-[200px]">
                                 {ev.label}
                                 {anyEv?.description ? (
-                                  <div className="text-gray-300 mt-1">{String(anyEv.description)}</div>
+                  <div className="text-gray-300 mt-1">{String(anyEv.description)}</div>
                                 ) : null}
                                 {isCustomEvent ? (
-                                  <div className="text-blue-300 mt-1 text-[10px]">Click to view/edit</div>
+                  <div className="text-emerald-300 mt-1 text-[10px]">Click to view/edit</div>
                                 ) : null}
                               </div>
                             </div>
@@ -394,6 +494,7 @@ export default function Calendar() {
             </div>
 
             <form onSubmit={handleAddEvent} className="space-y-4">
+              <div className="text-xs text-gray-500">These events are local to this browser in the MVP.</div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Event Title *
@@ -537,6 +638,23 @@ export default function Calendar() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Assign to Operator *
+                </label>
+                <select
+                  required
+                  value={eventForm.operator}
+                  onChange={(e) => handleFormChange('operator', e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+                  <option value="" disabled>Select operator…</option>
+                  {operators.map((op) => (
+                    <option key={op} value={op}>{op}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Description
                 </label>
                 <textarea
@@ -552,7 +670,7 @@ export default function Calendar() {
                 <button
                   type="button"
                   onClick={resetModal}
-                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="flex-1 px-4 py-2 text-gray-800 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
@@ -754,6 +872,23 @@ export default function Calendar() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Assign to Operator *
+                  </label>
+                  <select
+                    required
+                    value={eventForm.operator}
+                    onChange={(e) => handleFormChange('operator', e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="" disabled>Select operator…</option>
+                    {operators.map((op) => (
+                      <option key={op} value={op}>{op}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Description
                   </label>
                   <textarea
@@ -768,7 +903,7 @@ export default function Calendar() {
                   <button
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    className="flex-1 px-4 py-2 text-gray-800 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
