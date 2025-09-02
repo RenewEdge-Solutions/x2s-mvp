@@ -51,13 +51,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Regulator console</h1>
-          <p className="mt-1 text-sm text-gray-600">Seed‑to‑sale oversight, compliance monitoring, and public safety</p>
-        </div>
-      </div>
+  {/* Page header removed per request */}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
