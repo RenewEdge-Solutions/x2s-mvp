@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Card from '../components/Card';
-import { ShieldCheck, RefreshCw } from 'lucide-react';
+import { ShieldCheck, RefreshCw, Boxes } from 'lucide-react';
 import { api } from '../lib/api';
 import { useModule } from '../context/ModuleContext';
 import { useAuth } from '../context/AuthContext';
@@ -58,7 +58,7 @@ export default function BlockchainView() {
   return (
     <Card>
       <h2 className="text-lg font-medium text-gray-900 mb-3 inline-flex items-center gap-2">
-        <ShieldCheck className="h-5 w-5" aria-hidden /> Blockchain Integrity
+        <Boxes className="h-5 w-5" aria-hidden /> Blockchain Integrity
       </h2>
       {activeModule !== 'cannabis' && (
         <p className="text-sm text-gray-700 mb-3">The {activeModule} module UI is not yet implemented in this MVP.</p>

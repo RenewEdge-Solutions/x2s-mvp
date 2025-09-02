@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Card from '../components/Card';
-import { ShieldCheck, RefreshCw } from 'lucide-react';
+import { ShieldCheck, RefreshCw, Boxes } from 'lucide-react';
 import { api } from '../lib/api';
 import { useModule } from '../context/ModuleContext';
 import { useAuth } from '../context/AuthContext';
@@ -56,13 +56,15 @@ export default function BlockchainView() {
   }, [events]);
 
   return (
-    <Card>
-      <h2 className="text-lg font-medium text-gray-900 mb-3 inline-flex items-center gap-2">
-        <ShieldCheck className="h-5 w-5" aria-hidden /> Blockchain Integrity
-      </h2>
-      {activeModule !== 'cannabis' && (
-        <p className="text-sm text-gray-700 mb-3">The {activeModule} module UI is not yet implemented in this MVP.</p>
-      )}
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Boxes className="h-6 w-6 text-emerald-600" aria-hidden />
+        <h1 className="text-2xl font-semibold text-gray-900">Integrity</h1>
+      </div>
+      <Card>
+        {activeModule !== 'cannabis' && (
+          <p className="text-sm text-gray-700 mb-3">The {activeModule} module UI is not yet implemented in this MVP.</p>
+        )}
       <div className="overflow-auto max-h-[52rem]">
         <table className="min-w-full w-full text-sm">
           <thead>
@@ -130,6 +132,7 @@ export default function BlockchainView() {
           </tbody>
         </table>
       </div>
-    </Card>
+      </Card>
+    </div>
   );
 }

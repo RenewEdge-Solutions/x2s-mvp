@@ -82,7 +82,9 @@ export default function App() {
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-100">
       <header className="mx-auto max-w-7xl px-6 py-10">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-emerald-600" />
+          <div className="h-10 w-10 rounded-lg bg-emerald-600/10 ring-1 ring-emerald-600/20 text-emerald-700 flex items-center justify-center">
+            <Leaf className="h-6 w-6" aria-hidden />
+          </div>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Cannabis Traceability MVP</h1>
             <p className="text-gray-500 text-sm">Seed-to-sale integrity for regulators, auditors, operators, labs, and retail</p>

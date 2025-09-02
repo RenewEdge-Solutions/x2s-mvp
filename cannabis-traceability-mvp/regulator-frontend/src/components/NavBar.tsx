@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useModule, ModuleName } from '../context/ModuleContext';
-import { Leaf, Wand2, User as UserIcon, ChevronDown, LogOut, Calendar as CalendarIcon, Bell, FileText, Search, Plus, ShieldCheck, Workflow, Scale, Building2 } from 'lucide-react';
+import { Leaf, Wand2, User as UserIcon, ChevronDown, LogOut, Calendar as CalendarIcon, Bell, FileText, Search, Plus, ShieldCheck, Workflow, Scale, Building2, Boxes } from 'lucide-react';
 import { api } from '../lib/api';
 
 export default function NavBar() {
@@ -82,7 +82,7 @@ export default function NavBar() {
               }`}
               to="/integrity"
             >
-              <ShieldCheck className="h-4 w-4" aria-hidden /> Integrity
+              <Boxes className="h-4 w-4" aria-hidden /> Integrity
             </Link>
             {/* Reports */}
             <Link

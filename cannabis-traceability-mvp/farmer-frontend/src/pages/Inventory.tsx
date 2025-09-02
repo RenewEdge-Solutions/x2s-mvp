@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import Card from '../components/Card';
-import { Plus, Package, Boxes, Layers } from 'lucide-react';
+import KPI from '../components/KPI';
+import { Plus, Package, Boxes, BarChart3 } from 'lucide-react';
 
 type InvItem = {
   id: string;
@@ -17,26 +18,47 @@ type InvItem = {
   updatedAt: string; // ISO
 };
 
-const seedInv: InvItem[] = Array.from({ length: 32 }).map((_, i) => {
+const seedInv: InvItem[] = Array.from({ length: 120 }).map((_, i) => {
   const categories: InvItem['category'][] = ['Flower', 'Trim', 'Pre-roll', 'Oil', 'Edible', 'Packaging', 'Nutrients', 'Supplies'];
   const cat = categories[i % categories.length];
-  const strains = ['Blue Dream', 'OG Kush', 'Sour Diesel', 'Gelato', 'Gorilla Glue', 'Pineapple Express'];
-  const fac = ['Farm HQ', 'Greenhouse 1', 'Greenhouse 2', 'Indoor Room 1', 'Indoor Room 2'];
-  const loc = ['Dry Room 1', 'Cure Room A', 'Vault', 'Packaging Line', 'Veg Room 2', 'Flower Room 1'];
+  const strains = ['Blue Dream', 'OG Kush', 'Sour Diesel', 'Gelato', 'Gorilla Glue', 'Pineapple Express', 'Wedding Cake', 'Runtz'];
+  const fac = ['Farm HQ', 'Greenhouse 1', 'Greenhouse 2', 'Processing Plant', 'Indoor Room 1', 'Indoor Room 2'];
+  const loc = ['Dry Room 1', 'Cure Room A', 'Vault', 'Packaging Line', 'Storage B', 'Receiving'];
   const sku = `${cat.slice(0,3).toUpperCase()}-${(1000 + i).toString()}`;
-  const uom = cat === 'Flower' || cat === 'Trim' ? (i % 4 === 0 ? 'kg' : 'g') : 'units';
-  const qty = uom === 'units' ? 200 - (i * 3 % 50) : (uom === 'kg' ? 12 - (i % 4) : 5000 - (i * 91));
+  const uom: InvItem['uom'] = cat === 'Flower' || cat === 'Trim' ? (i % 4 === 0 ? 'kg' : 'g') : (cat === 'Oil' ? 'L' : 'units');
+  const qty =
+    uom === 'units'
+      ? 500 - ((i * 7) % 220)
+      : uom === 'kg'
+      ? 20 - (i % 5)
+      : uom === 'L'
+      ? 50 - (i % 11)
+      : 8000 - (i * 77);
+  const baseName =
+    cat === 'Pre-roll'
+      ? `${strains[i % strains.length]} 1g pre-roll`
+      : cat === 'Packaging'
+      ? ['Child-resistant Jar (90mm)', 'Mylar Bag (3.5g)', 'Tamper Seal Roll'][i % 3]
+      : cat === 'Nutrients'
+      ? ['Bloom A 5L', 'Bloom B 5L', 'Cal-Mag 1L'][i % 3]
+      : cat === 'Supplies'
+      ? ['RFID Tags', 'Trimming Gloves (L)', 'Isopropyl Alcohol 99%'][i % 3]
+      : cat === 'Oil'
+      ? `${strains[i % strains.length]} Distillate`
+      : cat === 'Edible'
+      ? `Gummies 10mg (${['Strawberry', 'Mango', 'Grape'][i % 3]})`
+      : `${strains[i % strains.length]} ${cat}`;
   return {
     id: `INV-${(20250900 + i).toString()}`,
     sku,
-    name: cat === 'Pre-roll' ? `${strains[i % strains.length]} 1g pre-roll` : cat === 'Packaging' ? 'Child-resistant Jars (90mm)' : cat,
+    name: baseName,
     category: cat,
     strain: ['Flower','Trim','Pre-roll','Oil'].includes(cat) ? strains[i % strains.length] : undefined,
-    batchId: ['Flower','Trim','Pre-roll','Oil'].includes(cat) ? `B-23-${100 + (i % 20)}` : undefined,
+    batchId: ['Flower','Trim','Pre-roll','Oil','Edible'].includes(cat) ? `B-23-${100 + (i % 28)}` : undefined,
     facility: fac[i % fac.length],
     location: loc[i % loc.length],
     quantity: Math.max(0, qty),
-    uom: uom as InvItem['uom'],
+    uom,
     status: (['Available','Quarantined','Locked','Reserved'] as InvItem['status'][])[i % 4],
     updatedAt: new Date(Date.now() - i * 86400000).toISOString(),
   };
@@ -45,19 +67,27 @@ const seedInv: InvItem[] = Array.from({ length: 32 }).map((_, i) => {
 export default function Inventory() {
   const [items, setItems] = useState<InvItem[]>(seedInv);
   const [openAdd, setOpenAdd] = useState(false);
-  const [filters, setFilters] = useState({ q: '', category: 'All', status: 'All' });
+  const [filters, setFilters] = useState({ q: '', category: 'All', status: 'All', strain: 'All', batch: 'All', facility: 'All', location: 'All' });
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.category)))], [items]);
   const statuses = ['All', 'Available', 'Quarantined', 'Locked', 'Reserved'];
   const totalQty = items.reduce((sum, it) => sum + (it.uom === 'units' ? 0 : it.quantity), 0);
   const unitCount = items.filter(i => i.uom === 'units').reduce((sum, it) => sum + it.quantity, 0);
   const batches = Array.from(new Set(items.map(i => i.batchId).filter(Boolean))) as string[];
+  const strains = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.strain).filter(Boolean))) as string[]], [items]);
+  const batchOptions = useMemo(() => ['All', ...batches], [batches]);
+  const facilities = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.facility)))], [items]);
+  const locations = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.location)))], [items]);
 
   const filtered = items.filter(it => {
     const byQ = filters.q ? `${it.name} ${it.sku} ${it.strain||''} ${it.batchId||''}`.toLowerCase().includes(filters.q.toLowerCase()) : true;
     const byC = filters.category === 'All' ? true : it.category === (filters.category as any);
     const byS = filters.status === 'All' ? true : it.status === (filters.status as any);
-    return byQ && byC && byS;
+    const byStrain = filters.strain === 'All' ? true : (it.strain || '') === filters.strain;
+    const byBatch = filters.batch === 'All' ? true : (it.batchId || '') === filters.batch;
+    const byFacility = filters.facility === 'All' ? true : it.facility === filters.facility;
+    const byLocation = filters.location === 'All' ? true : it.location === filters.location;
+    return byQ && byC && byS && byStrain && byBatch && byFacility && byLocation;
   });
 
   function addItemMock(form: Partial<InvItem>) {
@@ -81,58 +111,30 @@ export default function Inventory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Inventory</h1>
-          <p className="text-sm text-gray-600">Realistic inventory across products, packaging, and supplies</p>
+          <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2"><Package className="h-5 w-5 text-emerald-600" aria-hidden /> Inventory</h1>
         </div>
-        <button className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-primary text-white text-sm" onClick={() => setOpenAdd(true)}>
+        <button
+          className="inline-flex items-center gap-1 px-2 py-1 border rounded-md text-sm text-gray-800 hover:bg-gray-50"
+          onClick={() => setOpenAdd(true)}
+        >
           <Plus className="h-4 w-4" aria-hidden /> Add item
         </button>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Card>
-          <div className="text-xs text-gray-500">Distinct items</div>
-          <div className="mt-1 text-2xl font-semibold text-gray-900">{items.length}</div>
-          <div className="mt-1 text-xs text-gray-500">{categories.length - 1} categories</div>
-        </Card>
-        <Card>
-          <div className="text-xs text-gray-500">Total weight (g)</div>
-          <div className="mt-1 text-2xl font-semibold text-gray-900">{Math.round(totalQty).toLocaleString()}</div>
-          <div className="mt-1 text-xs text-gray-500">Excludes unit-only items</div>
-        </Card>
-        <Card>
-          <div className="text-xs text-gray-500">Unit count</div>
-          <div className="mt-1 text-2xl font-semibold text-gray-900">{unitCount.toLocaleString()}</div>
-          <div className="mt-1 text-xs text-gray-500">Pre-rolls, packaging, supplies</div>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <KPI label="Distinct items" value={items.length} icon={<div className="text-emerald-600"><Package className="h-4 w-4" aria-hidden /></div>} />
+        <KPI label="Total weight (g)" value={Math.round(totalQty).toLocaleString()} icon={<div className="text-emerald-600"><BarChart3 className="h-4 w-4" aria-hidden /></div>} />
+        <KPI label="Unit count" value={unitCount.toLocaleString()} icon={<div className="text-emerald-600"><Boxes className="h-4 w-4" aria-hidden /></div>} />
       </div>
 
-      {/* Filters */}
-      <Card>
-        <div className="flex flex-wrap gap-2 items-center">
-          <input
-            placeholder="Search name, SKU, strain, or batch"
-            className="rounded-md border-gray-300 px-2 py-1 text-sm min-w-[18rem]"
-            value={filters.q}
-            onChange={(e)=>setFilters({...filters, q: e.target.value})}
-          />
-          <select className="rounded-md border-gray-300 px-2 py-1 text-sm" value={filters.category} onChange={(e)=>setFilters({...filters, category: e.target.value})}>
-            {categories.map(c => (<option key={c}>{c}</option>))}
-          </select>
-          <select className="rounded-md border-gray-300 px-2 py-1 text-sm" value={filters.status} onChange={(e)=>setFilters({...filters, status: e.target.value})}>
-            {statuses.map(s => (<option key={s}>{s}</option>))}
-          </select>
-          <div className="ml-auto text-xs text-gray-500">{filtered.length} items</div>
-        </div>
-      </Card>
-
+      {/* Items table with Excel-like header filters */}
       <Card title="Items">
-        <div className="overflow-auto max-h-[28rem] rounded-lg border border-gray-100">
+        <div className="overflow-auto max-h-[800px] rounded-lg border border-gray-100">
           <table className="min-w-full w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="text-left text-gray-600 bg-gray-50">
                 <th className="py-2 px-3 font-semibold">SKU</th>
                 <th className="py-2 px-3 font-semibold">Name</th>
@@ -144,12 +146,49 @@ export default function Inventory() {
                 <th className="py-2 px-3 font-semibold">Status</th>
                 <th className="py-2 px-3 font-semibold">Facility</th>
                 <th className="py-2 px-3 font-semibold">Location</th>
-                <th className="py-2 px-3 font-semibold">Updated</th>
+                <th className="py-2 px-3 font-semibold text-right">Updated</th>
+              </tr>
+              <tr className="bg-white border-b border-gray-100">
+                <th className="py-2 px-3"><input placeholder="SKU" className="w-full rounded-md border-gray-300 px-2 py-1 text-xs" value={filters.q} onChange={(e)=>setFilters({...filters, q: e.target.value})} /></th>
+                <th className="py-2 px-3"><input placeholder="Name, strain, batch" className="w-full rounded-md border-gray-300 px-2 py-1 text-xs" value={filters.q} onChange={(e)=>setFilters({...filters, q: e.target.value})} /></th>
+                <th className="py-2 px-3">
+                  <select className="w-full rounded-md border-gray-300 px-2 py-1 text-xs" value={filters.category} onChange={(e)=>setFilters({...filters, category: e.target.value})}>
+                    {categories.map(c => (<option key={c}>{c}</option>))}
+                  </select>
+                </th>
+                <th className="py-2 px-3">
+                  <select className="w-full rounded-md border-gray-300 px-2 py-1 text-xs" value={filters.strain} onChange={(e)=>setFilters({...filters, strain: e.target.value})}>
+                    {strains.map(s => (<option key={s}>{s}</option>))}
+                  </select>
+                </th>
+                <th className="py-2 px-3">
+                  <select className="w-full rounded-md border-gray-300 px-2 py-1 text-xs" value={filters.batch} onChange={(e)=>setFilters({...filters, batch: e.target.value})}>
+                    {batchOptions.map(b => (<option key={b}>{b}</option>))}
+                  </select>
+                </th>
+                <th className="py-2 px-3"></th>
+                <th className="py-2 px-3"></th>
+                <th className="py-2 px-3">
+                  <select className="w-full rounded-md border-gray-300 px-2 py-1 text-xs" value={filters.status} onChange={(e)=>setFilters({...filters, status: e.target.value})}>
+                    {statuses.map(s => (<option key={s}>{s}</option>))}
+                  </select>
+                </th>
+                <th className="py-2 px-3">
+                  <select className="w-full rounded-md border-gray-300 px-2 py-1 text-xs" value={filters.facility} onChange={(e)=>setFilters({...filters, facility: e.target.value})}>
+                    {facilities.map(f => (<option key={f}>{f}</option>))}
+                  </select>
+                </th>
+                <th className="py-2 px-3">
+                  <select className="w-full rounded-md border-gray-300 px-2 py-1 text-xs" value={filters.location} onChange={(e)=>setFilters({...filters, location: e.target.value})}>
+                    {locations.map(l => (<option key={l}>{l}</option>))}
+                  </select>
+                </th>
+                <th className="py-2 px-3 text-right"><span className="text-[11px] text-gray-500">{filtered.length} items</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.map((it) => (
-                <tr key={it.id} className="text-gray-800">
+                <tr key={it.id} className="text-gray-800 hover:bg-gray-50">
                   <td className="py-2 px-3 font-mono">{it.sku}</td>
                   <td className="py-2 px-3">{it.name}</td>
                   <td className="py-2 px-3">{it.category}</td>
@@ -160,7 +199,7 @@ export default function Inventory() {
                   <td className="py-2 px-3"><StatusBadge status={it.status} /></td>
                   <td className="py-2 px-3">{it.facility}</td>
                   <td className="py-2 px-3">{it.location}</td>
-                  <td className="py-2 px-3 whitespace-nowrap text-xs text-gray-600">{new Date(it.updatedAt).toLocaleDateString()}</td>
+                  <td className="py-2 px-3 whitespace-nowrap text-xs text-gray-600 text-right">{new Date(it.updatedAt).toLocaleDateString()}</td>
                 </tr>
               ))}
               {filtered.length===0 && (
@@ -188,9 +227,9 @@ function StatusBadge({ status }: { status: InvItem['status'] }) {
 function Drawer({ title, children, onClose, onSubmit }: { title: string; children: React.ReactNode; onClose: () => void; onSubmit?: () => void }) {
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/20" onClick={onClose} aria-hidden />
-      <div className="absolute right-0 top-0 h-full w-full sm:w-[30rem] bg-white shadow-xl border-l border-gray-200 overflow-auto">
-        <div className="p-4 flex items-start justify-between">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden />
+      <div className="absolute right-0 top-0 h-full w-full sm:w-[32rem] bg-white shadow-2xl border-l border-gray-200 overflow-auto">
+        <div className="p-4 flex items-start justify-between bg-gray-50 border-b border-gray-200">
           <div>
             <div className="text-sm text-gray-500">Inventory</div>
             <div className="text-lg font-semibold text-gray-900">{title}</div>
@@ -198,11 +237,11 @@ function Drawer({ title, children, onClose, onSubmit }: { title: string; childre
           <button className="text-gray-600 hover:text-gray-900" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <div className="px-4 pb-24">
-          <div className="rounded-lg border border-gray-200 p-4 mt-2">
+          <div className="rounded-lg border border-gray-200 p-4 mt-3 bg-white">
             {children}
           </div>
         </div>
-        <div className="absolute bottom-0 inset-x-0 p-3 border-t border-gray-200 bg-white flex items-center justify-end gap-2">
+        <div className="sticky bottom-0 inset-x-0 p-3 border-t border-gray-200 bg-white flex items-center justify-end gap-2">
           <button className="px-3 py-2 rounded-md border text-sm hover:bg-gray-50" onClick={onClose}>Cancel</button>
           <button className="px-3 py-2 rounded-md bg-primary text-white text-sm font-medium hover:opacity-95" onClick={onSubmit}>Save</button>
         </div>

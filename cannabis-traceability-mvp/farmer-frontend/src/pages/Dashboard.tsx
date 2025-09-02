@@ -136,8 +136,8 @@ export default function Dashboard() {
 
   {/* Facility utilization card removed per request */}
 
-      {/* Two-up row: Inspections and Production summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  {/* Two-up row: Inspections and Production summary */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card title="Inspections & schedule" to="/calendar">
           <div className="mt-1 max-h-[160px] overflow-auto pr-1">
             <ul className="space-y-2 text-sm text-gray-700">
@@ -160,6 +160,43 @@ export default function Dashboard() {
             <MiniStat icon={<Leaf className="h-4 w-4" />} label="Flower" value={pipeline.plants.flowering} />
             <MiniStat icon={<Activity className="h-4 w-4" />} label="Ready" value={pipeline.batches.readyForSale} />
           </div>
+        </Card>
+      </div>
+
+      {/* Additional farmer insights */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card title="Yield trend (last 6 harvests)" to="/reports">
+          <div className="mt-1 grid grid-cols-6 gap-2 items-end h-24">
+            {[4200, 3800, 4500, 4700, 4300, 4900].map((v,i)=>{
+              const h = Math.max(8, Math.round((v/5000)*88));
+              return <div key={i} className="flex flex-col items-center gap-1">
+                <div className="w-6 rounded-t bg-emerald-500" style={{height: `${h}px`}} />
+                <div className="text-[10px] text-gray-500">{v/1000}kg</div>
+              </div>;
+            })}
+          </div>
+        </Card>
+        <Card title="Top strains by output" to="/reports">
+          <ul className="mt-1 space-y-2 text-sm">
+            {[
+              {name:'Blue Dream', kg: 78},
+              {name:'OG Kush', kg: 65},
+              {name:'Gelato', kg: 52},
+              {name:'Sour Diesel', kg: 48},
+            ].map(s => (
+              <li key={s.name} className="flex items-center justify-between">
+                <span className="text-gray-800">{s.name}</span>
+                <span className="text-gray-600">{s.kg} kg</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+        <Card title="Open work orders" to="/production">
+          <ul className="mt-1 space-y-2 text-sm">
+            <li className="flex items-center justify-between"><span className="text-gray-800">Defoliation • FR-2</span><span className="text-xs text-gray-500">Due in 2d</span></li>
+            <li className="flex items-center justify-between"><span className="text-gray-800">IPM spray • GH-1</span><span className="text-xs text-gray-500">Tomorrow</span></li>
+            <li className="flex items-center justify-between"><span className="text-gray-800">Room turnover • DR-1</span><span className="text-xs text-gray-500">In 4d</span></li>
+          </ul>
         </Card>
       </div>
     </div>

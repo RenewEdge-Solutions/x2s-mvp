@@ -289,7 +289,7 @@ export default function Calendar() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2">
-          <CalendarIcon className="h-6 w-6" aria-hidden /> Calendar
+          <CalendarIcon className="h-6 w-6 text-emerald-600" aria-hidden /> Calendar
         </h1>
     <div className="flex items-center gap-3">
           <div className="relative">

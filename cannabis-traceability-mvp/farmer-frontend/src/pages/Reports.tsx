@@ -94,6 +94,11 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2"><FileText className="h-5 w-5 text-emerald-600" aria-hidden /> Reports</h1>
+        </div>
+      </div>
       {/* Create (snapshot) */}
   <Card title="Create a report snapshot">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">

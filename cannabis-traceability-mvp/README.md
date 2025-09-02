@@ -59,6 +59,11 @@ cd laboratory-frontend && npm install && npm run dev # :9005
 - Profile
 	- Removed temporary API token section.
 	- Cleaned “(mock)” from subtitles.
+ - Page headers & icons
+	- Standardized all page titles to a consistent H1 style (text-2xl font-semibold).
+	- Ensured page-level titles include the same icon used in the navbar.
+	- Integrity icon updated to a blockchain-like symbol (Boxes) everywhere.
+	- Calendar icon color standardized to emerald in page titles.
 
 ## 🌾 What’s new (Farmer Frontend)
 
@@ -74,6 +79,23 @@ cd laboratory-frontend && npm install && npm run dev # :9005
 	- Drawer-based “Add item” action with a structured form (SKU, Name, Category, UoM, Quantity, Status, Strain/Batch, Facility/Location).
  - Misc
 	- Debug data route removed from the farmer app in the MVP build path to avoid dev-only errors.
+ - Page headers & icons
+	- Standardized all page titles to the same H1 style (text-2xl font-semibold).
+	- Every page title now uses the exact same icon as its navbar entry (Production → Workflow, Inventory → Package, Lifecycle → ShieldCheck, Reports → FileText, Calendar → Calendar).
+	- Calendar title icon uses emerald tone for visual consistency.
+
+## 🛡️ What’s new (Auditor Frontend)
+
+- Page headers & icons
+	- Added/standardized page-level titles with icons to match the navbar (Lifecycle, Integrity, Reports, Calendar).
+	- Integrity icon updated to blockchain-like (Boxes) in navbar and page headers.
+	- All page titles use the consistent H1 style (text-2xl font-semibold).
+- Reports
+	- Snapshot and automated report lists styled consistently with Regulator.
+
+## 👋 What’s new (Welcome Frontend)
+
+- Header icon updated: replaced the solid green rectangle with the shared Leaf brand icon inside an emerald ring to match the frontends’ navbar branding.
 
 ## 🔐 Demo Login
 

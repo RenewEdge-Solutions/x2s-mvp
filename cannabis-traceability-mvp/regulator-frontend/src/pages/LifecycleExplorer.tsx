@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Card from '../components/Card';
-import { History as HistoryIcon, FileText, Building2 } from 'lucide-react';
+import { ShieldCheck, FileText, Building2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useModule } from '../context/ModuleContext';
 
@@ -53,13 +53,15 @@ export default function LifecycleExplorer() {
   });
 
   return (
-    <Card>
-      <h2 className="text-lg font-medium text-gray-900 mb-3 inline-flex items-center gap-2">
-        <HistoryIcon className="h-5 w-5" aria-hidden /> Event History
-      </h2>
-      {activeModule !== 'cannabis' && (
-        <p className="text-sm text-gray-700 mb-3">The {activeModule} module UI is not yet implemented in this MVP.</p>
-      )}
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <ShieldCheck className="h-6 w-6 text-emerald-600" aria-hidden />
+        <h1 className="text-2xl font-semibold text-gray-900">Lifecycle</h1>
+      </div>
+      <Card>
+        {activeModule !== 'cannabis' && (
+          <p className="text-sm text-gray-700 mb-3">The {activeModule} module UI is not yet implemented in this MVP.</p>
+        )}
   {/* Filters moved to header row */}
       <div className="overflow-auto max-h-[64rem] rounded-lg border border-gray-100">
         <table className="min-w-full w-full text-sm">
@@ -139,7 +141,8 @@ export default function LifecycleExplorer() {
           </tbody>
         </table>
       </div>
-    </Card>
+      </Card>
+    </div>
   );
 }
 
