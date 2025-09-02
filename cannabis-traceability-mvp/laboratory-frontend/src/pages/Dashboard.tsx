@@ -1,33 +1,33 @@
 import React, { useEffect, useState } from 'react';
-import { BadgeCheck, FileBarChart2, Scale, Shield, ShieldCheck, Calendar as CalendarIcon, Workflow, Sparkles, Waypoints, ClipboardList, AlertTriangle, Beaker, Activity, Building2, Users } from 'lucide-react';
+import { FileBarChart2, Calendar as CalendarIcon, Waypoints, ClipboardList, AlertTriangle, Beaker, Activity, PackageCheck } from 'lucide-react';
 import Card from '../components/Card';
 import KPI from '../components/KPI';
 import { Link } from 'react-router-dom';
-import { api } from '../lib/api';
+// Lab dashboard is self-contained; no external events loaded in MVP
 
 export default function Dashboard() {
   // Static demo metrics (mock-first, no backend required)
   const kpis = [
-  { label: 'Active licenses', value: 128, icon: <Scale className="h-5 w-5" aria-hidden />, to: '/licensing' },
-  { label: 'Facilities', value: 42, icon: <Building2 className="h-5 w-5" aria-hidden />, to: '/facilities' },
-  { label: 'Open investigations', value: 3, icon: <Shield className="h-5 w-5" aria-hidden />, to: '/facilities' },
-  { label: 'Batches awaiting COA', value: 11, icon: <ClipboardList className="h-5 w-5" aria-hidden />, to: '/lifecycle' },
-  { label: 'Compliance alerts', value: 6, icon: <AlertTriangle className="h-5 w-5" aria-hidden />, to: '/facilities' },
-  { label: 'COA pass rate', value: '93%', icon: <Beaker className="h-5 w-5" aria-hidden />, to: '/reports' },
+    { label: 'Samples in queue', value: 37, icon: <ClipboardList className="h-5 w-5" aria-hidden />, to: '/testing' },
+    { label: 'Avg TAT (days)', value: 4.2, icon: <Activity className="h-5 w-5" aria-hidden />, to: '/reports' },
+    { label: 'COA awaiting sign-off', value: 5, icon: <PackageCheck className="h-5 w-5" aria-hidden />, to: '/testing' },
+    { label: 'Batches awaiting COA', value: 11, icon: <ClipboardList className="h-5 w-5" aria-hidden />, to: '/testing' },
+    { label: 'Alerts', value: 2, icon: <AlertTriangle className="h-5 w-5" aria-hidden />, to: '/testing' },
+    { label: 'Pass rate', value: '93%', icon: <Beaker className="h-5 w-5" aria-hidden />, to: '/reports' },
   ];
 
   // License mix by type (mocked)
-  const licenseMix = [
-    { type: 'Cultivation', active: 62, pending: 5, suspended: 1, expired: 2 },
-    { type: 'Manufacturing', active: 28, pending: 3, suspended: 0, expired: 1 },
-    { type: 'Laboratory', active: 9, pending: 1, suspended: 0, expired: 0 },
-    { type: 'Retail', active: 29, pending: 4, suspended: 1, expired: 0 },
+  const panels = [
+    { name: 'Potency', done: 18, pending: 6, failed: 0 },
+    { name: 'Pesticides', done: 14, pending: 3, failed: 1 },
+    { name: 'Microbials', done: 12, pending: 2, failed: 0 },
+    { name: 'Heavy metals', done: 9, pending: 1, failed: 0 },
   ];
 
   // Pipeline snapshot (mocked)
   const pipeline = {
-    plants: { vegetative: 5400, flowering: 3100, drying: 420 },
-    batches: { awaitingCoa: 11, failed7d: 1, readyForSale: 76 },
+    submissions: { intakeToday: 12, inTesting: 29, awaitingReview: 7 },
+    batches: { awaitingCoa: 11, failed7d: 1, released: 42 },
   };
 
   // Recent movements removed per request (card removed)
@@ -35,32 +35,6 @@ export default function Dashboard() {
   // Alerts (mocked)
   type EventLite = { id: number; title: string; eventType: string; startDate: string };
   const [events, setEvents] = useState<EventLite[]>([]);
-  const [integrity, setIntegrity] = useState<{ total: number; verified: number; mismatched: number }>({ total: 0, verified: 0, mismatched: 0 });
-
-  async function sha256Hex(input: string): Promise<string> {
-    const enc = new TextEncoder();
-    const buf = await crypto.subtle.digest('SHA-256', enc.encode(input));
-    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  useEffect(() => {
-    // Load light-weight mock data from the API layer where available
-  api.getEvents().then((evts) => setEvents((evts as EventLite[])));
-  api.getIntegrity().then(async (rows: any[]) => {
-      try {
-        const checks = await Promise.all(rows.map(async (r) => {
-          const local = await sha256Hex(JSON.stringify(r.payload));
-          return local === (r.hash ?? '');
-        }));
-        const total = rows.length;
-        const verified = checks.filter(Boolean).length;
-        const mismatched = total - verified;
-        setIntegrity({ total, verified, mismatched });
-      } catch {
-        setIntegrity({ total: rows?.length ?? 0, verified: rows?.length ?? 0, mismatched: 0 });
-      }
-    });
-  }, []);
 
   // Featured inspection/schedule items (mocked, merged before API events)
   function daysFromNow(n: number) {
@@ -68,32 +42,23 @@ export default function Dashboard() {
     return d.toISOString();
   }
   const featuredEvents: EventLite[] = [
-    { id: -1, title: 'COA Due: Batch B-23-115', eventType: 'deadline', startDate: daysFromNow(4) },
-    { id: -2, title: 'Enforcement Action Review', eventType: 'meeting', startDate: daysFromNow(4) },
-    { id: -3, title: 'Follow-up CAPA', eventType: 'task', startDate: daysFromNow(6) },
-    { id: -4, title: 'Compliance Audit: Regulatory Office', eventType: 'audit', startDate: daysFromNow(7) },
-    { id: -5, title: 'Sampling: Authority HQ', eventType: 'sampling', startDate: daysFromNow(7) },
-    { id: -6, title: 'License Renewal Checkpoint', eventType: 'deadline', startDate: daysFromNow(8) },
-    { id: -7, title: 'Inspection: Accredited Lab SLU', eventType: 'inspection', startDate: daysFromNow(8) },
-    { id: -8, title: 'Recall Follow-up: Batch B-23-108', eventType: 'task', startDate: daysFromNow(9) },
+    { id: -1, title: 'COA Due: Batch B-24-011', eventType: 'deadline', startDate: daysFromNow(2) },
+    { id: -2, title: 'Instrument calibration: HPLC', eventType: 'maintenance', startDate: daysFromNow(3) },
+    { id: -3, title: 'Sample pickup: Green Fields Co.', eventType: 'logistics', startDate: daysFromNow(3) },
+    { id: -4, title: 'Client review: Island Wellness', eventType: 'meeting', startDate: daysFromNow(4) },
+    { id: -5, title: 'Proficiency test submission', eventType: 'deadline', startDate: daysFromNow(7) },
   ];
   const visibleEvents = [...featuredEvents, ...events];
 
-  const expiringLicenses = [
-    { id: 'L-1201', name: 'Green Fields Co.', cls: 'Cultivation', days: 7 },
-    { id: 'L-1187', name: 'Medicanna Labs', cls: 'Laboratory', days: 12 },
-    { id: 'L-1143', name: 'Sunrise Processing', cls: 'Manufacturing', days: 15 },
-    { id: 'L-1110', name: 'Harbor Dispensary', cls: 'Retail', days: 22 },
-    { id: 'L-1099', name: 'West Ridge Farm', cls: 'Cultivation', days: 28 },
-    { id: 'L-1210', name: 'Coastal Botanicals', cls: 'Cultivation', days: 5 },
-    { id: 'L-1211', name: 'Island Wellness', cls: 'Retail', days: 9 },
-    { id: 'L-1212', name: 'Pure Extracts Inc.', cls: 'Manufacturing', days: 16 },
-    { id: 'L-1213', name: 'North Shore Labs', cls: 'Laboratory', days: 19 },
+  const turnaroundSamples = [
+    { id: 'B-24-011', name: 'Green Fields Co.', panel: 'Potency', days: 2 },
+    { id: 'B-24-009', name: 'North Shore Labs', panel: 'Pesticides', days: 4 },
+    { id: 'B-24-008', name: 'Island Wellness', panel: 'Microbials', days: 3 },
   ];
 
   return (
   <div className="space-y-4">
-  {/* Page header removed per request */}
+  {/* Title intentionally removed for a cleaner overview per request */}
 
       {/* KPIs */}
   <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
@@ -102,32 +67,30 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* License overview */}
+      {/* Panels overview */}
       <div className="grid grid-cols-1 gap-4">
-        <Card title="License overview" to="/licensing">
+        <Card title="Testing panels overview">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
-            {licenseMix.map((lic) => (
-              <div key={lic.type} className="rounded-lg border border-gray-200 p-3">
+            {panels.map((p) => (
+              <div key={p.name} className="rounded-lg border border-gray-200 p-3">
                 <div className="flex items-center justify-between text-sm text-gray-600">
-                  <div className="inline-flex items-center gap-2">
-                    <Users className="h-4 w-4 text-emerald-600" aria-hidden />
-                    <span className="font-medium text-gray-800">{lic.type}</span>
-                  </div>
-                  <span className="text-xs">{lic.active + lic.pending + lic.suspended + lic.expired} total</span>
+                  <Link to="/testing" className="inline-flex items-center gap-2 hover:text-gray-900">
+                    <Beaker className="h-4 w-4 text-emerald-600" aria-hidden />
+                    <span className="font-medium text-gray-800 underline decoration-transparent hover:decoration-gray-300">{p.name}</span>
+                  </Link>
+                  <span className="text-xs">{p.done + p.pending} total</span>
                 </div>
-                <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
-                  <StatusStat label="Active" value={lic.active} tone="emerald" />
-                  <StatusStat label="Pending" value={lic.pending} tone="amber" />
-                  <StatusStat label="Suspended" value={lic.suspended} tone="rose" />
-                  <StatusStat label="Expired" value={lic.expired} tone="gray" />
+                <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                  <StatusStat label="Done" value={p.done} tone="emerald" />
+                  <StatusStat label="Pending" value={p.pending} tone="amber" />
+                  <StatusStat label="Failed" value={p.failed} tone="rose" />
                 </div>
                 <div className="mt-3">
                   <StackedBar
                     parts={[
-                      { value: lic.active, tone: 'emerald' },
-                      { value: lic.pending, tone: 'amber' },
-                      { value: lic.suspended, tone: 'rose' },
-                      { value: lic.expired, tone: 'gray' },
+                      { value: p.done, tone: 'emerald' },
+                      { value: p.pending, tone: 'amber' },
+                      { value: p.failed, tone: 'rose' },
                     ]}
                   />
                 </div>
@@ -137,16 +100,16 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Pipeline + Compliance alerts */}
+      {/* Pipeline + Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-  <Card className="lg:col-span-2" title="Production pipeline" to="/lifecycle">
+  <Card className="lg:col-span-2" title="Lab pipeline" to="/testing">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <h4 className="text-xs font-medium text-gray-700">Plants by stage</h4>
+              <h4 className="text-xs font-medium text-gray-700">Submissions</h4>
               <div className="mt-2 space-y-2">
-                <Bar label="Vegetative" value={pipeline.plants.vegetative} max={6000} tone="emerald" />
-                <Bar label="Flowering" value={pipeline.plants.flowering} max={6000} tone="amber" />
-                <Bar label="Drying" value={pipeline.plants.drying} max={1000} tone="sky" />
+                <Bar label="Intake today" value={pipeline.submissions.intakeToday} max={50} tone="emerald" />
+                <Bar label="In testing" value={pipeline.submissions.inTesting} max={60} tone="amber" />
+                <Bar label="Awaiting review" value={pipeline.submissions.awaitingReview} max={30} tone="sky" />
               </div>
             </div>
             <div>
@@ -154,45 +117,25 @@ export default function Dashboard() {
               <div className="mt-2 grid grid-cols-3 gap-3">
                 <MiniStat icon={<ClipboardList className="h-4 w-4" />} label="Awaiting COA" value={pipeline.batches.awaitingCoa} />
                 <MiniStat icon={<Beaker className="h-4 w-4" />} label="Failed (7d)" value={pipeline.batches.failed7d} tone="rose" />
-                <MiniStat icon={<Activity className="h-4 w-4" />} label="Ready for sale" value={pipeline.batches.readyForSale} tone="emerald" />
+                <MiniStat icon={<Activity className="h-4 w-4" />} label="Released" value={pipeline.batches.released} tone="emerald" />
               </div>
             </div>
           </div>
         </Card>
-  <Card title="Compliance & alerts" to="/facilities">
+  <Card title="Alerts" to="/testing">
           <div className="mt-1 max-h-[160px] overflow-auto pr-1">
             <ul className="space-y-2 text-sm text-gray-700">
               <li className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden />
-                <span>11 batches awaiting COA across 4 labs</span>
+                <span>3 batches nearing COA deadline</span>
               </li>
               <li className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 text-rose-600" aria-hidden />
                 <span>1 batch failed pesticide limits in last 7 days</span>
               </li>
               <li className="flex items-start gap-2">
-                <BadgeCheck className="mt-0.5 h-4 w-4 text-emerald-600" aria-hidden />
-                <span>0 public recalls open</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden />
-                <span>2 labs over SLA turnaround time</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden />
-                <span>1 facility over capacity threshold</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden />
-                <span>3 overdue CAPA actions</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" aria-hidden />
-                <span>2 missing seed lot documents</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 text-rose-600" aria-hidden />
-                <span>1 suspected diversion flagged</span>
+                <Beaker className="mt-0.5 h-4 w-4 text-emerald-600" aria-hidden />
+                <span>0 instrument calibration issues</span>
               </li>
             </ul>
           </div>
@@ -201,7 +144,7 @@ export default function Dashboard() {
 
   {/* Facility utilization card removed per request */}
 
-      {/* Three-up row: Inspections, Licenses expiring, Blockchain */}
+      {/* Three-up row: Schedule, Turnaround, COA */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card title="Inspections & schedule" to="/calendar">
           <div className="mt-1 max-h-[160px] overflow-auto pr-1">
@@ -219,27 +162,27 @@ export default function Dashboard() {
             </ul>
           </div>
         </Card>
-        <Card title="Licenses expiring soon" to="/licensing">
+  <Card title="Turnaround samples" to="/testing">
           <div className="mt-1 max-h-[160px] overflow-auto pr-1">
             <ul className="space-y-2 text-sm text-gray-700">
-              {expiringLicenses.map((l) => (
-                <li key={l.id} className="flex items-center justify-between gap-2">
+              {turnaroundSamples.map((s) => (
+                <li key={s.id} className="flex items-center justify-between gap-2">
                   <div className="inline-flex items-center gap-2">
-                    <Scale className="h-4 w-4 text-emerald-600" aria-hidden />
-                    <span className="font-medium text-gray-900">{l.name}</span>
-                    <span className="text-xs text-gray-500">{l.cls}</span>
+                    <Beaker className="h-4 w-4 text-emerald-600" aria-hidden />
+                    <span className="font-medium text-gray-900">{s.name}</span>
+                    <span className="text-xs text-gray-500">{s.panel}</span>
                   </div>
-                  <span className={`text-xs font-medium ${l.days <= 7 ? 'text-rose-700' : l.days <= 14 ? 'text-amber-700' : 'text-gray-500'}`}>{l.days}d</span>
+                  <span className={`text-xs font-medium ${s.days >= 5 ? 'text-rose-700' : s.days >= 3 ? 'text-amber-700' : 'text-gray-500'}`}>{s.days}d</span>
                 </li>
               ))}
             </ul>
           </div>
         </Card>
-        <Card title="Blockchain integrity" to="/integrity">
+  <Card title="COA status" to="/testing">
           <div className="grid grid-cols-3 gap-3">
-            <MiniStat icon={<ShieldCheck className="h-4 w-4" />} label="Verified" value={integrity.verified} tone="emerald" />
-            <MiniStat icon={<Shield className="h-4 w-4" />} label="Mismatch" value={integrity.mismatched} tone={integrity.mismatched > 0 ? 'rose' : 'gray'} />
-            <MiniStat icon={<BadgeCheck className="h-4 w-4" />} label="Total" value={integrity.total} />
+            <MiniStat icon={<PackageCheck className="h-4 w-4" />} label="Ready" value={5} tone="emerald" />
+            <MiniStat icon={<Beaker className="h-4 w-4" />} label="In review" value={7} />
+            <MiniStat icon={<AlertTriangle className="h-4 w-4" />} label="Failed" value={1} tone="rose" />
           </div>
         </Card>
       </div>

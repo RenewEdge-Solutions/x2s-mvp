@@ -16,56 +16,35 @@ type ReportGroup = {
 
 const reportGroups: ReportGroup[] = [
   {
-    title: 'Licensing Register & Classes',
+    title: 'Sales & Finance',
     items: [
-      { key: 'licensee_register', label: 'Licensee Register', description: 'Active/suspended/expired by licence class', format: 'csv' },
-      { key: 'licence_classes_mix', label: 'Licence Classes Mix', description: 'Cultivation, Processing, Manufacturing, Retail/Dispensary', format: 'pdf' },
-      { key: 'applications_pipeline', label: 'Applications Pipeline & SLA', description: 'Status, background checks, SLA timelines', format: 'csv' },
+      { key: 'daily_z_report', label: 'Daily Z-Report', description: 'End-of-day totals: gross, tax, tenders, voids/returns', format: 'pdf' },
+      { key: 'sales_tax_summary', label: 'Sales Tax Summary', description: 'Tax collected by rate and period', format: 'csv' },
+      { key: 'sales_by_category', label: 'Sales by Category', description: 'Category mix (Flower, Pre-roll, Edibles, Oils, etc.)', format: 'csv' },
+      { key: 'cash_drawer_recon', label: 'Cash Drawer Reconciliation', description: 'Open/close counts, over/shorts, adjustments', format: 'pdf' },
     ],
   },
   {
-    title: 'Compliance Inspections',
+    title: 'Inventory',
     items: [
-      { key: 'inspection_schedule', label: 'Inspection Schedule', description: 'Upcoming and completed inspections by facility', format: 'csv' },
-      { key: 'inspection_findings', label: 'Inspection Findings & CAPA', description: 'Non-conformities and corrective actions', format: 'pdf' },
-      { key: 'followup_tracking', label: 'Follow-up Tracking', description: 'Due dates, closures, escalations', format: 'csv' },
+      { key: 'inventory_on_hand', label: 'Inventory on Hand', description: 'On-hand by SKU with THC/CBD, cost, and retail price', format: 'csv' },
+      { key: 'low_stock_reorder', label: 'Low Stock & Reorder', description: 'Below threshold items and recommended reorder qty', format: 'csv' },
+      { key: 'shrinkage_adjustments', label: 'Shrinkage & Adjustments', description: 'Breakage, samples, recount adjustments log', format: 'csv' },
     ],
   },
   {
-    title: 'Enforcement Actions',
+    title: 'Compliance',
     items: [
-      { key: 'cases_register', label: 'Cases Register', description: 'Open/closed cases with status and assignments', format: 'csv' },
-      { key: 'sanctions', label: 'Sanctions & Penalties', description: 'Fines, suspensions, licence actions', format: 'pdf' },
+      { key: 'age_verification_log', label: 'Age Verification Log', description: 'ID checks and failures (no PII)', format: 'csv' },
+      { key: 'purchase_limits', label: 'Patient Purchase Limits', description: 'Sales vs. limits (adult-use vs. medical)', format: 'csv' },
+      { key: 'chain_of_custody_retail', label: 'Chain-of-Custody (Retail)', description: 'Receipts, transfers, and returns log', format: 'pdf' },
     ],
   },
   {
-    title: 'Production & Market Activity',
+    title: 'Scheduling',
     items: [
-      { key: 'cultivation_activity', label: 'Cultivation Activity', description: 'Plantings, harvests, destruction by month', format: 'csv' },
-      { key: 'market_sales_summary', label: 'Market Sales Summary', description: 'Wholesale and retail volumes/values', format: 'csv' },
-    ],
-  },
-  {
-    title: 'Laboratory & Public Health',
-    items: [
-      { key: 'coa_pass_rate', label: 'COA Pass Rate by Product', description: 'Pass/fail counts by product category', format: 'csv' },
-      { key: 'lab_tat', label: 'Laboratory Turnaround Time', description: 'Median and outlier TAT for submissions', format: 'pdf' },
-      { key: 'recalls', label: 'Product Recalls', description: 'Active and historical recall notices', format: 'pdf' },
-    ],
-  },
-  {
-    title: 'Permits & Cross‑Border',
-    items: [
-      { key: 'permits_register', label: 'Import/Export Permits Register', description: 'Issued permits, validity, purpose', format: 'csv' },
-      { key: 'cross_border_movements', label: 'Cross‑border Movements', description: 'Shipments, route, and outcomes', format: 'csv' },
-    ],
-  },
-  {
-    title: 'Geography & Fees',
-    items: [
-      { key: 'licensees_by_district', label: 'Licensees by District', description: 'Distribution by geography', format: 'pdf' },
-      { key: 'licence_fees_and_renewals', label: 'Licence Fees & Renewals', description: 'Revenue, renewals, arrears', format: 'csv' },
-      { key: 'ledger_integrity', label: 'Ledger Integrity Summary', description: 'On‑chain records overview', format: 'pdf' },
+      { key: 'deliveries_schedule', label: 'Deliveries Schedule', description: 'Incoming/outgoing manifests and ETAs', format: 'csv' },
+      { key: 'staff_shifts', label: 'Staff Shifts', description: 'Shifts, absenteeism, and coverage', format: 'csv' },
     ],
   },
 ];
@@ -73,9 +52,9 @@ const reportGroups: ReportGroup[] = [
 export default function Reports() {
   const [creating, setCreating] = useState<string | null>(null);
   const savedSnapshots = [
-    { id: 'snap-1003', type: 'compliance_alerts_summary', createdAt: new Date(Date.now() - 3600_000 * 6).toISOString() },
-    { id: 'snap-1002', type: 'license_status_summary', createdAt: new Date(Date.now() - 3600_000 * 24).toISOString() },
-    { id: 'snap-1001', type: 'market_production', createdAt: new Date(Date.now() - 3600_000 * 48).toISOString() },
+    { id: 'snap-2003', type: 'daily_z_report', createdAt: new Date(Date.now() - 3600_000 * 6).toISOString() },
+    { id: 'snap-2002', type: 'inventory_on_hand', createdAt: new Date(Date.now() - 3600_000 * 24).toISOString() },
+    { id: 'snap-2001', type: 'sales_tax_summary', createdAt: new Date(Date.now() - 3600_000 * 48).toISOString() },
   ];
 
   const handleDownload = (key: string, format: 'csv' | 'pdf') => {
@@ -115,6 +94,11 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2">
+          <FileText className="h-6 w-6 text-emerald-600" aria-hidden /> Reports
+        </h1>
+      </div>
       {/* Create (snapshot) */}
   <Card title="Create a report snapshot">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">

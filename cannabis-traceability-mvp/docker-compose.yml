@@ -1,7 +1,5 @@
-# Volumes for persistent data and node_modules
-version: '3.9'  # Note: version field is deprecated but kept for compatibility
+version: "3.9"
 
-# Volumes for persistent data and node_modules
 volumes:
   auditor_node_modules:
   regulator_node_modules:
@@ -15,15 +13,15 @@ services:
     build:
       context: ./auditor-frontend
     environment:
-      VITE_USE_API_PROXY: 'true'
+      VITE_USE_API_PROXY: "true"
       VITE_API_URL: http://backend:3001
       VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
       NODE_ENV: development
-      DEBUG: 'vite:*'
-      VITE_HMR_PORT: '24680'
+      DEBUG: "vite:*"
+      VITE_HMR_PORT: "24680"
     ports:
-      - "9002:9001"  # host:container (auditor vite runs on 9001)
-      - "24680:24680" # HMR per README
+      - "9002:9001"
+      - "24680:24680"
     volumes:
       - ./auditor-frontend:/app
       - auditor_node_modules:/app/node_modules
@@ -33,12 +31,12 @@ services:
     build:
       context: ./regulator-frontend
     environment:
-      VITE_USE_API_PROXY: 'true'
+      VITE_USE_API_PROXY: "true"
       VITE_API_URL: http://backend:3001
       VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
       NODE_ENV: development
-      DEBUG: 'vite:*'
-      VITE_HMR_PORT: '24679'
+      DEBUG: "vite:*"
+      VITE_HMR_PORT: "24679"
     ports:
       - "9001:9001"
       - "24679:24679"
@@ -51,15 +49,15 @@ services:
     build:
       context: ./retail-frontend
     environment:
-      VITE_USE_API_PROXY: 'true'
+      VITE_USE_API_PROXY: "true"
       VITE_API_URL: http://backend:3001
       VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
       NODE_ENV: development
-      DEBUG: 'vite:*'
-      VITE_HMR_PORT: '24680'
+      DEBUG: "vite:*"
+      VITE_HMR_PORT: "24683"
     ports:
-      - "9004:9001"  # host:container (retail vite runs on 9001)
-      - "24680:24680"
+      - "9004:9001"
+      - "24683:24683"
     volumes:
       - ./retail-frontend:/app
       - retail_node_modules:/app/node_modules
@@ -69,32 +67,32 @@ services:
     build:
       context: ./farmer-frontend
     environment:
-      VITE_USE_API_PROXY: 'true'
+      VITE_USE_API_PROXY: "true"
       VITE_API_URL: http://backend:3001
       VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
       NODE_ENV: development
-      DEBUG: 'vite:*'
-      VITE_HMR_PORT: '24682'
+      DEBUG: "vite:*"
+      VITE_HMR_PORT: "24682"
     ports:
       - "9003:9000"
       - "24682:24682"
     volumes:
       - ./farmer-frontend:/app
       - farmer_node_modules:/app/node_modules
-    command: sh -c "npm install && npm run dev -- --port 9000"  # ensure container listens on 9000 per README
+    command: sh -c "npm install && npm run dev -- --port 9000"
 
   laboratory-frontend:
     build:
       context: ./laboratory-frontend
     environment:
-      VITE_USE_API_PROXY: 'true'
+      VITE_USE_API_PROXY: "true"
       VITE_API_URL: http://backend:3001
       VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
       NODE_ENV: development
-      DEBUG: 'vite:*'
-      VITE_HMR_PORT: '24681'
+      DEBUG: "vite:*"
+      VITE_HMR_PORT: "24681"
     ports:
-      - "9005:9001"  # host:container (lab vite runs on 9001)
+      - "9005:9001"
       - "24681:24681"
     volumes:
       - ./laboratory-frontend:/app
@@ -105,10 +103,10 @@ services:
     build:
       context: ./welcome-frontend
     environment:
-      VITE_USE_API_PROXY: 'false'
+      VITE_USE_API_PROXY: "false"
       NODE_ENV: development
-      DEBUG: 'vite:*'
-      VITE_HMR_PORT: '24678'
+      DEBUG: "vite:*"
+      VITE_HMR_PORT: "24678"
     ports:
       - "9000:9000"
       - "24678:24678"

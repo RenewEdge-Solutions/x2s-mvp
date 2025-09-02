@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useModule, ModuleName } from '../context/ModuleContext';
-import { Leaf, Wand2, User as UserIcon, ChevronDown, LogOut, Calendar as CalendarIcon, Bell, FileText, Search, Plus, ShieldCheck, Workflow, Scale, Building2 } from 'lucide-react';
+import { Leaf, User as UserIcon, ChevronDown, LogOut, Calendar as CalendarIcon, Bell, FileText, Search, Plus, ShoppingCart, Package } from 'lucide-react';
 import { api } from '../lib/api';
 
 export default function NavBar() {
@@ -38,51 +38,29 @@ export default function NavBar() {
               }`}
               to="/dashboard"
             >
-              <Workflow className="h-4 w-4" aria-hidden /> Overview
+              <ShoppingCart className="h-4 w-4" aria-hidden /> Overview
             </Link>
-            {/* Licensing */}
+            {/* POS */}
             <Link
               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                isActive('/licensing')
+                isActive('/pos')
                   ? 'text-primary bg-primary/10 ring-1 ring-primary/20'
                   : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
               }`}
-              to="/licensing"
+              to="/pos"
             >
-              <Scale className="h-4 w-4" aria-hidden /> Licensing
+              <ShoppingCart className="h-4 w-4" aria-hidden /> POS
             </Link>
-            {/* Operators */}
+            {/* Inventory */}
             <Link
               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                isActive('/facilities')
+                isActive('/inventory')
                   ? 'text-primary bg-primary/10 ring-1 ring-primary/20'
                   : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
               }`}
-              to="/facilities"
+              to="/inventory"
             >
-              <Building2 className="h-4 w-4" aria-hidden /> Operators
-            </Link>
-            {/* Lifecycle */}
-            <Link
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                isActive('/lifecycle')
-                  ? 'text-primary bg-primary/10 ring-1 ring-primary/20'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-              to="/lifecycle"
-            >
-              <ShieldCheck className="h-4 w-4" aria-hidden /> Lifecycle
-            </Link>
-            {/* Integrity */}
-            <Link
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                isActive('/integrity')
-                  ? 'text-primary bg-primary/10 ring-1 ring-primary/20'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-              to="/integrity"
-            >
-              <ShieldCheck className="h-4 w-4" aria-hidden /> Integrity
+              <Package className="h-4 w-4" aria-hidden /> Inventory
             </Link>
             {/* Reports */}
             <Link
@@ -112,8 +90,8 @@ export default function NavBar() {
           <div className="flex items-center gap-3">
             <NotificationsMenu />
             <UserMenu
-              name={user?.firstName || user?.lastName ? `${user?.firstName} ${user?.lastName}`.trim() : user?.username || 'Regulator'}
-              role={user?.role || 'Regulator'}
+              name={user?.firstName || user?.lastName ? `${user?.firstName} ${user?.lastName}`.trim() : user?.username || 'Retail User'}
+              role={user?.role || 'Retail'}
               onLogout={logout}
             />
           </div>
@@ -174,7 +152,7 @@ function UserMenu({ name, role, org, onLogout }: { name: string; role?: string; 
               <div className="min-w-0">
                 <div className="text-sm font-medium text-gray-900 truncate">{name || 'Regulator'}</div>
                 <div className="text-xs text-gray-500 truncate inline-flex items-center gap-1">
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+                  <CalendarIcon className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
                   {role || 'Regulator'} • {org || 'Authority'}
                 </div>
               </div>
@@ -250,83 +228,61 @@ function NotificationsMenu() {
       setItems([]);
       return;
     }
-    const capacityAlerts = await api.getEmptyCapacityAlerts();
-
     const now = Date.now();
     const isoAgo = (h: number) => new Date(now - h * 3600_000).toISOString();
 
     const mock: Notification[] = [
       {
-        id: 'capa-001',
-        title: 'CAPA overdue',
-        message: 'Sunrise Processing has not submitted CAPA for Major deficiency (Sanitation).',
+        id: 'low-001',
+        title: 'Low stock: Blue Dream 3.5g',
+        message: 'Only 12 units left. Consider reordering.',
+        severity: 'warning',
+        category: 'reports',
+        createdAt: isoAgo(2),
+        href: '/pos',
+        read: false,
+      },
+      {
+        id: 'age-101',
+        title: 'ID verification failed',
+        message: 'A customer failed ID verification at Register 2.',
         severity: 'alert',
         category: 'compliance',
-        operator: 'Sunrise Processing',
         createdAt: isoAgo(3),
-        href: '/facilities',
+        href: '/pos',
         read: false,
       },
       {
-        id: 'insp-101',
-        title: 'Inspection scheduled',
-        message: 'Routine inspection tomorrow at Green Leaf Holdings (09:00).',
-        severity: 'info',
-        category: 'inspection',
-        operator: 'Green Leaf Holdings',
-        createdAt: isoAgo(5),
-        href: '/calendar',
-        read: false,
-      },
-      {
-        id: 'lic-777',
-        title: 'Licensing SLA at risk',
-        message: 'Medicanna Labs Ltd application pending background check > 5 days.',
-        severity: 'warning',
-        category: 'licensing',
-        operator: 'Medicanna Labs Ltd',
-        createdAt: isoAgo(8),
-        href: '/wizard',
-        read: false,
-      },
-      {
-        id: 'chain-404',
-        title: 'Ledger integrity mismatch',
-        message: 'On-chain total for Licence Fees differs from system ledger (delta 1.2%).',
-        severity: 'alert',
-        category: 'integrity',
-        createdAt: isoAgo(10),
-        href: '/integrity',
-        read: false,
-      },
-      {
-        id: 'rpt-901',
-        title: 'Report ready',
-        message: 'Automated report “Market Sales Summary” has been generated (CSV).',
+        id: 'ret-202',
+        title: 'Return pending approval',
+        message: 'Return request for PR-1G-GG requires manager approval.',
         severity: 'info',
         category: 'reports',
-        createdAt: isoAgo(12),
+        createdAt: isoAgo(6),
         href: '/reports',
         read: false,
       },
+      {
+        id: 'eod-777',
+        title: 'EOD close reminder',
+        message: 'Complete Z-report and cash drawer reconciliation by 21:00.',
+        severity: 'warning',
+        category: 'reports',
+        createdAt: isoAgo(8),
+        href: '/reports',
+        read: false,
+      },
+      {
+        id: 'del-404',
+        title: 'Delivery ETA update',
+        message: 'Distributor SLU delivery arriving in ~30 minutes.',
+        severity: 'info',
+        category: 'inspection',
+        createdAt: isoAgo(10),
+        href: '/calendar',
+        read: false,
+      },
     ];
-
-    // Capacity alerts (append a few from API if available)
-    if (capacityAlerts?.overCapacityStructures?.length) {
-      capacityAlerts.overCapacityStructures.slice(0, 2).forEach((s: any, idx: number) => {
-        mock.push({
-          id: `cap-over-${idx}-${s.structureId}`,
-          title: 'Over capacity structure',
-          message: `${s.structureName} at ${s.facilityName} is over capacity (${s.totalPlants}/${s.capacity}).`,
-          severity: 'warning',
-          category: 'capacity',
-          operator: s.facilityName,
-          createdAt: isoAgo(14 + idx),
-          href: '/facilities',
-          read: false,
-        });
-      });
-    }
 
     setItems(mock.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
   };
@@ -335,11 +291,8 @@ function NotificationsMenu() {
   const groupedNotifications = useMemo(() => {
     const groups: NotificationGroup[] = [
       { category: 'compliance', title: 'Compliance', items: items.filter(i => i.category === 'compliance'), priority: 1 },
-      { category: 'inspection', title: 'Inspections', items: items.filter(i => i.category === 'inspection'), priority: 2 },
-      { category: 'licensing', title: 'Licensing', items: items.filter(i => i.category === 'licensing'), priority: 3 },
-      { category: 'integrity', title: 'Integrity', items: items.filter(i => i.category === 'integrity'), priority: 4 },
-      { category: 'reports', title: 'Reports', items: items.filter(i => i.category === 'reports'), priority: 5 },
-      { category: 'capacity', title: 'Capacity', items: items.filter(i => i.category === 'capacity'), priority: 6 },
+      { category: 'inspection', title: 'Operations', items: items.filter(i => i.category === 'inspection'), priority: 2 },
+      { category: 'reports', title: 'Reports', items: items.filter(i => i.category === 'reports'), priority: 3 },
     ];
     return groups.filter(g => g.items.length > 0).sort((a, b) => a.priority - b.priority);
   }, [items]);
@@ -511,12 +464,10 @@ function SearchBox() {
 
   const ROUTES = [
     { label: 'Overview', path: '/dashboard', keywords: 'home overview kpi dashboard' },
-    { label: 'Licensing wizard', path: '/wizard', keywords: 'license onboarding register apply' },
-    { label: 'Lifecycle', path: '/lifecycle', keywords: 'trace seed-to-sale stages chain custody' },
-    { label: 'Calendar', path: '/calendar', keywords: 'inspection schedule events' },
-    { label: 'Reports', path: '/reports', keywords: 'pdf summary export compliance' },
-    { label: 'Integrity', path: '/integrity', keywords: 'blockchain audit tamper-evident history' },
-  { label: 'Operators', path: '/facilities', keywords: 'operators license holders capacity occupancy structures rooms companies farms' },
+    { label: 'POS', path: '/pos', keywords: 'pos checkout sale cart receipt' },
+  { label: 'Inventory', path: '/inventory', keywords: 'stock reorder margin cost price items' },
+    { label: 'Calendar', path: '/calendar', keywords: 'schedule events shifts deliveries' },
+    { label: 'Reports', path: '/reports', keywords: 'sales tax inventory compliance' },
     { label: 'Profile', path: '/profile', keywords: 'user account settings' },
   ];
 
@@ -616,13 +567,7 @@ function QuickCreate() {
           >
             <FileText className="h-4 w-4 text-gray-500" aria-hidden /> Report
           </button>
-          <button
-            type="button"
-            onClick={() => { navigate('/wizard'); setOpen(false); }}
-            className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-gray-50 inline-flex items-center gap-2"
-          >
-            <Wand2 className="h-4 w-4 text-gray-500" aria-hidden /> Licensing
-          </button>
+          {/* Licensing removed for retail */}
         </div>
       )}
     </div>

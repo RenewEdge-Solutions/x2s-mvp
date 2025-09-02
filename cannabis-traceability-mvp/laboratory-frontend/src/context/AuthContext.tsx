@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [is2FARequired, set2FA] = useState(false);
   const [pendingUser, setPendingUser] = useState<User>(null);
-  const DEFAULT_ROLE: Role = 'Regulator';
+  const DEFAULT_ROLE: Role = 'Lab';
 
   const login = async (username: string, password: string) => {
     if (!username || password !== '1234') throw new Error('Invalid credentials');
@@ -43,16 +43,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       id: 'demo-user',
       username,
       role: DEFAULT_ROLE,
-      firstName: DEFAULT_ROLE,
-      lastName: 'User',
-      phone: '+1 (555) 010-0001',
-      email: `${username.toLowerCase()}@demo.local`,
+  firstName: DEFAULT_ROLE,
+  lastName: 'User',
+  phone: '+1 (555) 010-0001',
+  email: `${username.toLowerCase()}@demo.local`,
+  address: '123 Lab Street, Castries',
+  // Restrict module switcher to Cannabis only (fixes Calendar visibility and aligns dropdown to show only Cannabis)
+  modules: ['cannabis'],
     });
     set2FA(true);
   };
 
   const verify2FA = async (code: string) => {
-    const current = getDemoCode('REGULATOR-DEMO');
+  const current = getDemoCode('LAB-DEMO');
     if (code !== current) throw new Error('Invalid 2FA code');
     setUser(pendingUser);
     setPendingUser(null);

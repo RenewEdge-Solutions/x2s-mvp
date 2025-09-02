@@ -26,11 +26,11 @@ export default function DataDump() {
         api.getLifecycle().catch(() => []),
         api.getIntegrity().catch(() => []),
       ]);
-      setPlants(ps || []);
-      setHarvests(hs || []);
-      setReports(rs || []);
-      setLifecycle(lc || []);
-      setIntegrity(ig || []);
+  setPlants(Array.isArray(ps) ? (ps as Plant[]) : []);
+  setHarvests(Array.isArray(hs) ? (hs as Harvest[]) : []);
+  setReports(Array.isArray(rs) ? (rs as Report[]) : []);
+  setLifecycle(Array.isArray(lc) ? (lc as any[]) : []);
+  setIntegrity(Array.isArray(ig) ? (ig as any[]) : []);
     } catch (e: any) {
       setError(e?.message || 'Failed to load');
     } finally {
@@ -60,7 +60,7 @@ export default function DataDump() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Data (App View)</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2">Data (App View)</h1>
         <div className="flex items-center gap-2">
           <button
             disabled={loading}

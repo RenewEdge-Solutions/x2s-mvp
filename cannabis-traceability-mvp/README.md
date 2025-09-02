@@ -20,8 +20,8 @@ Services and ports:
 - Regulator Frontend: http://localhost:9001 (HMR 24679)
 - Auditor Frontend: http://localhost:9002 (HMR 24680)
 - Farmer Frontend: http://localhost:9003 (container port 9000; HMR 24682)
- - Retail Frontend: http://localhost:9004 (HMR 24680)
-- Laboratory Frontend: http://localhost:9005 (HMR 24681)
+ - Retail Frontend: http://localhost:9004 (HMR 24683)
+ - Laboratory Frontend: http://localhost:9005 (HMR 24681)
 
 Notes:
 - Ensure host ports 9000–9005 are free.
@@ -40,6 +40,16 @@ cd farmer-frontend && npm install && npm run dev     # :9003
 cd retail-frontend && npm install && npm run dev     # :9004
 cd laboratory-frontend && npm install && npm run dev # :9005
 ```
+
+## 🛍️ What’s new (Retail Frontend)
+
+- POS
+	- Simplified thermal-style receipt that prints via an in-page overlay (no extra windows/tabs). Uses window.print with afterprint cleanup.
+	- Product grid constrained to exactly 3 visible rows; additional items scroll within the grid.
+	- Customer DOB input enforces a maximum date of “today minus 18 years.”
+	- Local image assets by SKU under `retail-frontend/public/images/products` with graceful fallback.
+	- Inventory page now uses the same local SKU-based images for consistency.
+	- Minor UI polish and consistent page header/title icon.
 
 ## ✨ What’s new (Regulator Frontend)
 
@@ -93,56 +103,194 @@ cd laboratory-frontend && npm install && npm run dev # :9005
 - Reports
 	- Snapshot and automated report lists styled consistently with Regulator.
 
-## 👋 What’s new (Welcome Frontend)
+## 🧪 What’s new (Laboratory Frontend)
 
-- Header icon updated: replaced the solid green rectangle with the shared Leaf brand icon inside an emerald ring to match the frontends’ navbar branding.
+- Navigation
+	- Removed Licensing, Operators, Lifecycle, and Integrity from the lab navbar and routes (redirects to Dashboard if visited).
+	- Added a dedicated Testing page for intake → testing → review → COA workflow.
+- Authentication & Profile
+	- Default role set to Lab in the lab app; login screen defaults to Username “Laboratory”.
+	- 2FA seed changed to LAB-DEMO (code displayed on the phone mock).
+	- Profile shows lab-relevant modules and address.
+- Dashboard
+	- Reworked to lab KPIs (Samples in queue, TAT, COA status) and panels (Potency, Pesticides, Microbials, Heavy metals).
+	- Alerts section simplified to lab-relevant notices.
+- Calendar
+	- Shows only lab-created events; removed cultivation lifecycle overlays.
+	- Quick-add menu uses lab items: Sample pickup, Testing, COA due, Instrument calibration, Client meeting.
+- Reports
+	- Replaced with lab-focused groups: COA & Results, Turnaround Time, Operational.
+- Notifications
+	- Adjusted categories and entries for Intake, Testing, COA, Schedule, and Reports.
+- Typography
+	- Standardized page titles to the same H1 style across Lab pages.
 
-## 🔐 Demo Login
+## � Screenshots (MVP highlights)
 
-- Username: Regulator
-- Password: 1234
-- 2FA: A rotating 6‑digit code shown in the mock device on login
+Screenshots are in `./screenshots`. A few key views:
 
-## 🗺️ Google Maps Integration (optional)
+- Welcome: `screenshots/welcome.png`
+- Regulator: `screenshots/regulator-dashboard.png`
+- Auditor: `screenshots/auditor-dashboard.png`
+- Farmer: `screenshots/farmer-dashboard.png`
+- Retail: `screenshots/retail-pos.png`
+- Laboratory: `screenshots/laboratory-dashboard.png`
 
-Frontends support Maps-based location picking (where applicable).
 
-1) Create `.env` in each frontend:
-```env
-VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
-```
+## 📦 One-file Docker Desktop Release
 
-2) Enable in Google Cloud Console:
-- Maps JavaScript API
-- Places API
-- Geocoding API
+Goal: let someone import one artifact into Docker Desktop and run the MVP without building locally.
 
-3) Add referrer restrictions:
-- http://localhost:*/*
-- http://127.0.0.1:*/*
+Approach options:
 
-## 🔑 Demo Credentials (all role apps)
+1) Save images after building locally (simple)
+	 - Build once: `docker compose build`
+	 - Export all relevant images into a single tar:
+		 - macOS/Linux: `docker image save $(docker compose config --images) -o cannabis-mvp-images.tar`
+	 - Share `cannabis-mvp-images.tar`.
+	 - User imports in Docker Desktop: Images > Load (or `docker image load -i cannabis-mvp-images.tar`).
+	 - Then run: `docker compose up` (no rebuild needed).
 
-- Username: Regulator | Auditor | Farmer | Retail | Laboratory
-- Password: 1234
-- 2FA: A rotating 6‑digit code shown on the device mock in each app.
+2) Pre-bake dev servers into static images and provide a Compose + images pack (recommended for releases)
+	 - After building, create a `release` folder with:
+		 - `docker-compose.yml`
+		 - `images.tar` (from step 1)
+	 - User downloads the folder as a single archive and:
+		<div align="center">
 
-## ⚙️ Configuration
+		# 🌿 Cannabis Traceability MVP
 
-### Ports
-None specific beyond the frontends above.
+		[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+		[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+		[![Vite](https://img.shields.io/badge/Vite-Dev-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 
-### Development Notes
-- Mock authentication (no persistent sessions)
-- Mock data via local API layer
-- No backend required; all features are front-end only for demonstration
+		Modern, local-first seed‑to‑sale traceability demo with role‑based UIs for Regulator, Auditor, Farmer, Retail, and Laboratory.
 
-## 🚨 Limitations
+		</div>
 
-- Mock authentication without real session persistence
-- Minimal validation and error handling
-- Demonstration purposes only - not production ready
+		## ✨ Overview
 
----
+		This MVP demonstrates a practical, user-friendly approach to cannabis traceability across the full lifecycle. It runs entirely on your machine with mocked data, no backend required, and ships as multiple focused frontends you can run via Docker or Node.
 
-**Part of the RenewEdge Solutions Cannabis Traceability Suite**
+		Highlights:
+		- Clean, consistent Apple‑style UI with TailwindCSS
+		- Role‑specific workspaces: Regulator, Auditor, Farmer, Retail (POS), Laboratory
+		- Calendar, Reports, Notifications, and realistic data entry flows
+		- Lab Testing board (Intake → Testing → Review → COA Ready) with results capture
+		- Simple distribution: Docker Compose or one‑file Docker Desktop import
+
+		## 🖼️ Screenshots
+
+		<p>
+			<img alt="Welcome" src="02_screenshots/Welcome%20Page.png" width="47%" />
+			<img alt="Regulator" src="02_screenshots/Regulator%20Dashboard.png" width="47%" />
+		</p>
+		<p>
+			<img alt="Laboratory" src="02_screenshots/Laboratory%20Dashboard.png" width="47%" />
+			<img alt="Retail POS" src="02_screenshots/Retail%20POS.png" width="47%" />
+		</p>
+		<p>
+			<img alt="Auditor" src="02_screenshots/Auditor%20Dashboard.png" width="47%" />
+			<img alt="Farmer" src="02_screenshots/Farmer%20Dashbaord.png" width="47%" />
+		</p>
+
+		## 🧭 Modules & key flows
+
+		- Regulator: dashboards, calendar scheduling, operators, oversight reports, notifications
+		- Auditor: lifecycle snapshots, integrity views, reports, calendar
+		- Farmer: production workflow, inventory, KPIs, transfers, submissions to lab
+		- Retail: POS with age‑gating, SKU images, receipt printing, cart controls, inventory
+		- Laboratory: testing pipeline, calendar (lab‑only events), lab reports, KPIs, COA readiness
+
+		## 🧱 Architecture (from 01_docs)
+
+		The following documents describe the system’s design and rationale. See the files under `01_docs/` for details:
+
+		- High-level architecture: overall components and interactions — `01_docs/High Level Architecture Text.docx`
+		- Domain architecture: entities and lifecycle across seed‑to‑sale — `01_docs/Domain Architecture Cannabis Text.docx`
+		- Blockchain commit lifecycle (audit trail concept) — `01_docs/Blockchain Commit Lifecycle.docx`
+		- Security and audit architecture — `01_docs/Security and Audit Architecture.docx`
+		- Offline sync approach for low‑connectivity environments — `01_docs/Offline Sync Architecture.docx`
+		- Tech stack overview — `01_docs/Tech Stack.docx`
+
+		This MVP implements a front‑end–only slice of that design to make evaluation easy while preserving realistic UX flows.
+
+		## 🧰 Tech stack
+
+		- React + TypeScript + Vite
+		- Tailwind CSS
+		- Docker Compose (multi‑service dev)
+		- Mocked, in‑memory data (no database)
+
+		## � Quick start (Docker)
+
+		```bash
+		docker compose up --build
+		```
+
+		Services and ports:
+		- Welcome: http://localhost:9000 (HMR 24678)
+		- Regulator: http://localhost:9001 (HMR 24679)
+		- Auditor: http://localhost:9002 (HMR 24680)
+		- Farmer: http://localhost:9003 (container :9000, HMR 24682)
+		- Retail: http://localhost:9004 (HMR 24683)
+		- Laboratory: http://localhost:9005 (HMR 24681)
+
+		Notes:
+		- Ensure host ports 9000–9005 are open.
+		- HMR ports: 24678 (welcome), 24679 (regulator), 24680 (auditor), 24681 (lab), 24682 (farmer), 24683 (retail).
+
+		## � One‑file Docker Desktop release
+
+		Export all images into a single tar so users can import once and run without builds:
+
+		```bash
+		docker compose build
+		docker image save $(docker compose config --images) -o cannabis-mvp-images.tar
+		```
+
+		- Import via Docker Desktop (Images → Load) or CLI: `docker image load -i cannabis-mvp-images.tar`.
+		- Then run: `docker compose up`.
+
+		Optional helper script (if present): `tools/release/export-images.sh` performs the build + export.
+
+		## 🧪 Run locally (without Docker)
+
+		All frontends run standalone with mocked data:
+
+		```bash
+		cd welcome-frontend && npm install && npm run dev    # :9000
+		cd regulator-frontend && npm install && npm run dev  # :9001
+		cd auditor-frontend && npm install && npm run dev    # :9002
+		cd farmer-frontend && npm install && npm run dev     # :9003
+		cd retail-frontend && npm install && npm run dev     # :9004
+		cd laboratory-frontend && npm install && npm run dev # :9005
+		```
+
+		## 🔑 Demo credentials
+
+		- Username: Regulator | Auditor | Farmer | Retail | Laboratory
+		- Password: 1234
+		- 2FA: A rotating 6‑digit code appears on the login device mock (where applicable)
+
+		## 🧭 Notable UX details
+
+		- Retail POS: thermal‑style in‑page receipt printing, 3‑row product grid, age gating (18+), SKU images mapped across Inventory and POS, improved stepper controls
+		- Laboratory: Testing page with KPIs, contextual “Advance” actions (Push to Testing/Review/COA Ready), results entry table, green iconography, lab‑only calendar, lab‑focused reports
+		- Consistent H1 titles and iconography across apps
+
+		## 📚 More reading (01_docs)
+
+		For deeper context, refer to the documents in `01_docs/`:
+
+		- Blockchain Commit Lifecycle — `01_docs/Blockchain Commit Lifecycle.docx`
+		- High Level Architecture — `01_docs/High Level Architecture Text.docx`
+		- Domain Architecture — `01_docs/Domain Architecture Cannabis Text.docx`
+		- Offline Sync Architecture — `01_docs/Offline Sync Architecture.docx`
+		- Security & Audit Architecture — `01_docs/Security and Audit Architecture.docx`
+		- Tech Stack — `01_docs/Tech Stack.docx`
+		- Legislation reference — `01_docs/St Lucia_cannabis-and-industrial-hemp-bill-2025.pdf`
+
+		---
+
+		Part of the RenewEdge Solutions Cannabis Traceability Suite

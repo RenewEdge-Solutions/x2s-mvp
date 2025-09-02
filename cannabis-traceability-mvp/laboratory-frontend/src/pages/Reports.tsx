@@ -16,56 +16,26 @@ type ReportGroup = {
 
 const reportGroups: ReportGroup[] = [
   {
-    title: 'Licensing Register & Classes',
-    items: [
-      { key: 'licensee_register', label: 'Licensee Register', description: 'Active/suspended/expired by licence class', format: 'csv' },
-      { key: 'licence_classes_mix', label: 'Licence Classes Mix', description: 'Cultivation, Processing, Manufacturing, Retail/Dispensary', format: 'pdf' },
-      { key: 'applications_pipeline', label: 'Applications Pipeline & SLA', description: 'Status, background checks, SLA timelines', format: 'csv' },
-    ],
-  },
-  {
-    title: 'Compliance Inspections',
-    items: [
-      { key: 'inspection_schedule', label: 'Inspection Schedule', description: 'Upcoming and completed inspections by facility', format: 'csv' },
-      { key: 'inspection_findings', label: 'Inspection Findings & CAPA', description: 'Non-conformities and corrective actions', format: 'pdf' },
-      { key: 'followup_tracking', label: 'Follow-up Tracking', description: 'Due dates, closures, escalations', format: 'csv' },
-    ],
-  },
-  {
-    title: 'Enforcement Actions',
-    items: [
-      { key: 'cases_register', label: 'Cases Register', description: 'Open/closed cases with status and assignments', format: 'csv' },
-      { key: 'sanctions', label: 'Sanctions & Penalties', description: 'Fines, suspensions, licence actions', format: 'pdf' },
-    ],
-  },
-  {
-    title: 'Production & Market Activity',
-    items: [
-      { key: 'cultivation_activity', label: 'Cultivation Activity', description: 'Plantings, harvests, destruction by month', format: 'csv' },
-      { key: 'market_sales_summary', label: 'Market Sales Summary', description: 'Wholesale and retail volumes/values', format: 'csv' },
-    ],
-  },
-  {
-    title: 'Laboratory & Public Health',
+    title: 'COA & Results',
     items: [
       { key: 'coa_pass_rate', label: 'COA Pass Rate by Product', description: 'Pass/fail counts by product category', format: 'csv' },
+      { key: 'coa_ready', label: 'COA Ready for Sign‑off', description: 'Batches ready for final approval', format: 'csv' },
+      { key: 'failed_results', label: 'Failed Results Summary', description: 'Failures by panel and analyte', format: 'pdf' },
+    ],
+  },
+  {
+    title: 'Turnaround Time',
+    items: [
       { key: 'lab_tat', label: 'Laboratory Turnaround Time', description: 'Median and outlier TAT for submissions', format: 'pdf' },
-      { key: 'recalls', label: 'Product Recalls', description: 'Active and historical recall notices', format: 'pdf' },
+      { key: 'queue_depth', label: 'Queue Depth by Panel', description: 'Intake, In‑testing, Review counts', format: 'csv' },
     ],
   },
   {
-    title: 'Permits & Cross‑Border',
+    title: 'Operational',
     items: [
-      { key: 'permits_register', label: 'Import/Export Permits Register', description: 'Issued permits, validity, purpose', format: 'csv' },
-      { key: 'cross_border_movements', label: 'Cross‑border Movements', description: 'Shipments, route, and outcomes', format: 'csv' },
-    ],
-  },
-  {
-    title: 'Geography & Fees',
-    items: [
-      { key: 'licensees_by_district', label: 'Licensees by District', description: 'Distribution by geography', format: 'pdf' },
-      { key: 'licence_fees_and_renewals', label: 'Licence Fees & Renewals', description: 'Revenue, renewals, arrears', format: 'csv' },
-      { key: 'ledger_integrity', label: 'Ledger Integrity Summary', description: 'On‑chain records overview', format: 'pdf' },
+      { key: 'instrument_calibration', label: 'Instrument Calibration Log', description: 'Completed and upcoming calibrations', format: 'csv' },
+      { key: 'sample_intake', label: 'Sample Intake Register', description: 'Samples received by day/client', format: 'csv' },
+      { key: 'client_submissions', label: 'Client Submissions Summary', description: 'Submissions by operator', format: 'csv' },
     ],
   },
 ];
@@ -115,6 +85,11 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2">
+          <FileText className="h-6 w-6 text-emerald-600" aria-hidden /> Reports
+        </h1>
+      </div>
       {/* Create (snapshot) */}
   <Card title="Create a report snapshot">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
