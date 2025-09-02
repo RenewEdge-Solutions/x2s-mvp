@@ -95,11 +95,11 @@ let mockLifecycle: LifecycleEvent[] = [
 
 // Seed licensing events to appear in Lifecycle view
 let mockLicensingEvents: LicensingEvent[] = [
-  { type: 'application-submitted', licenceId: 'LIC-0201', holder: 'Green Leaf Holdings', submittedAt: daysAgo(40), submittedBy: 'Portal: user@greenleaf.example' },
-  { type: 'license-issued', licenceId: 'LIC-0201', holder: 'Green Leaf Holdings', issuedAt: daysAgo(35) },
-  { type: 'fee-payment', licenceId: 'LIC-0201', amount: 25000, currency: 'XCD', at: daysAgo(35) },
-  { type: 'license-amended', licenceId: 'LIC-0123', holder: 'Island Herbals Inc.', amendedAt: daysAgo(13), fields: ['Address', 'Responsible Person'] },
-  { type: 'license-renewed', licenceId: 'LIC-0099', holder: 'Ganja Co. Ltd.', renewedAt: daysAgo(21), until: '2026-06-30' },
+  { type: 'application-submitted', licenceId: 'LIC-1021', holder: 'Green Leaf Holdings', submittedAt: daysAgo(40), submittedBy: 'Portal: user@greenleaf.example' },
+  { type: 'license-issued', licenceId: 'LIC-1021', holder: 'Green Leaf Holdings', issuedAt: daysAgo(35) },
+  { type: 'fee-payment', licenceId: 'LIC-1021', amount: 25000, currency: 'XCD', at: daysAgo(35) },
+  { type: 'license-amended', licenceId: 'LIC-1125', holder: 'Island Wellness Retail', amendedAt: daysAgo(13), fields: ['Address', 'Responsible Person'] },
+  { type: 'license-renewed', licenceId: 'LIC-1110', holder: 'Emerald Valley Farm', renewedAt: daysAgo(21), until: '2026-06-30' },
   { type: 'license-suspended', licenceId: 'LIC-1102', holder: 'Harbor Dispensary', suspendedAt: daysAgo(20), reason: 'Compliance issues' },
   { type: 'license-reinstated', licenceId: 'LIC-1102', holder: 'Harbor Dispensary', reinstatedAt: daysAgo(5) },
 ];

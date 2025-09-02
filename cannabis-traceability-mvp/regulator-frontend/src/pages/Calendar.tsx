@@ -4,6 +4,7 @@ import Card from '../components/Card';
 import { useModule } from '../context/ModuleContext';
 import { Calendar as CalendarIcon, Plus, X, RefreshCw, Edit, Trash2, ChevronDown, Loader2 } from 'lucide-react';
 import { computeEventsForCannabis, eventColor } from '../lib/calendar';
+import { mockOperators } from '../lib/mockOperators';
 import { api } from '../lib/api';
 
 export default function Calendar() {
@@ -42,13 +43,13 @@ export default function Calendar() {
         setPlants([]);
         setHarvests([]);
         setCustomEvents([]);
+        setOperators([]);
         return;
       }
-      const [pl, hv, ev, occ] = await Promise.all([
+      const [pl, hv, ev] = await Promise.all([
         api.getPlants(),
         api.getHarvests(),
         api.getEvents(),
-        api.getAllOccupancy(),
       ]);
       if (cancelled) return;
       setPlants(pl);
@@ -65,9 +66,8 @@ export default function Calendar() {
           operator: e.metadata?.operator || '',
         }))
       );
-      // Derive operators from occupancy facilities
-      const facilities = Array.from(new Set(((occ || []) as any[]).map((o: any) => o.facility).filter(Boolean)));
-      setOperators(facilities);
+      // Use shared mock operators list for consistency
+      setOperators(mockOperators);
     }
     load();
     return () => { cancelled = true; };

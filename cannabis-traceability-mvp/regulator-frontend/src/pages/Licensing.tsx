@@ -19,7 +19,7 @@ type Application = {
 };
 
 const seedApplications: Application[] = [
-  { id: 'A-24051', applicant: 'Green Fields Co.', licenceClass: 'Cultivation', district: 'Castries', submittedAt: daysAgo(12), status: 'Background Checks', slaDaysLeft: 18, risk: 'Medium' },
+  { id: 'A-24051', applicant: 'Green Leaf Holdings', licenceClass: 'Cultivation', district: 'Castries', submittedAt: daysAgo(12), status: 'Background Checks', slaDaysLeft: 18, risk: 'Medium' },
   { id: 'A-24052', applicant: 'Medicanna Labs Ltd', licenceClass: 'Laboratory', district: 'Gros Islet', submittedAt: daysAgo(5), status: 'Screening', slaDaysLeft: 25, risk: 'Low' },
   { id: 'A-24053', applicant: 'Sunrise Processing', licenceClass: 'Manufacturing', district: 'Vieux Fort', submittedAt: daysAgo(22), status: 'Pending Docs', slaDaysLeft: -2, risk: 'High' },
   { id: 'A-24054', applicant: 'Harbor Dispensary', licenceClass: 'Retail/Dispensary', district: 'Soufrière', submittedAt: daysAgo(9), status: 'Inspection Scheduled', slaDaysLeft: 11, risk: 'Medium' },
@@ -47,7 +47,7 @@ const seedApplications: Application[] = [
   { id: 'A-24076', applicant: 'Windward Wellness', licenceClass: 'Retail/Dispensary', district: 'Gros Islet', submittedAt: daysAgo(10), status: 'Inspection Scheduled', slaDaysLeft: 7, risk: 'Low' },
   { id: 'A-24077', applicant: 'Rainforest Remedies', licenceClass: 'Manufacturing', district: 'Soufrière', submittedAt: daysAgo(12), status: 'Screening', slaDaysLeft: 20, risk: 'Medium' },
   { id: 'A-24078', applicant: 'Saint Lucia Extracts', licenceClass: 'Manufacturing', district: 'Castries', submittedAt: daysAgo(24), status: 'Pending Docs', slaDaysLeft: -3, risk: 'High' },
-  { id: 'A-24079', applicant: 'GreenHarbor Labs', licenceClass: 'Laboratory', district: 'Vieux Fort', submittedAt: daysAgo(16), status: 'Approved', slaDaysLeft: -9, risk: 'Low' },
+  { id: 'A-24079', applicant: 'GreenWave Labs', licenceClass: 'Laboratory', district: 'Vieux Fort', submittedAt: daysAgo(16), status: 'Approved', slaDaysLeft: -9, risk: 'Low' },
   { id: 'A-24080', applicant: 'Coral Reef Dispensary', licenceClass: 'Retail/Dispensary', district: 'Choiseul', submittedAt: daysAgo(5), status: 'New', slaDaysLeft: 28, risk: 'Low' },
 ];
 
