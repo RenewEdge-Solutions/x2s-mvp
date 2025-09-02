@@ -5,7 +5,7 @@ import { getDemoCode } from '../lib/totp';
 
 export default function Login() {
   const { login, verify2FA, is2FARequired } = useAuth();
-  const [username, setUsername] = useState('Lab');
+  const [username, setUsername] = useState('Laboratory');
   const [password, setPassword] = useState('1234');
   const [code, setCode] = useState('');
   const [nowCode, setNowCode] = useState(getDemoCode('LAB-DEMO'));
@@ -36,7 +36,7 @@ export default function Login() {
           <h2 className="text-3xl font-bold text-gray-900">Laboratory Portal</h2>
           <p className="mt-2 text-gray-600">Secure access to test entry and COAs.</p>
           <ul className="mt-6 space-y-2 text-sm text-gray-700">
-            <li>• Role: Lab</li>
+            <li>• Role: Laboratory</li>
             <li>• Access: Results entry, COA hashing</li>
             <li>• Compliance-grade session with 2FA</li>
           </ul>
@@ -65,7 +65,7 @@ export default function Login() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
           <div className="mb-6">
             <h1 className="text-2xl font-semibold text-gray-900">Sign in</h1>
-            <p className="mt-1 text-sm text-gray-600">Enter your credentials to access the Lab workspace.</p>
+            <p className="mt-1 text-sm text-gray-600">Enter your credentials to access the Laboratory workspace.</p>
           </div>
 
           {!is2FARequired ? (
@@ -76,7 +76,7 @@ export default function Login() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="mt-1 w-full rounded-lg border-gray-300 focus:ring-emerald-500 focus:border-emerald-500"
-                  placeholder="Lab"
+                  placeholder="Laboratory"
                 />
               </div>
               <div>
@@ -111,7 +111,7 @@ export default function Login() {
 
           <div className="mt-6 rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm text-gray-700">
             <div className="font-medium">Demo credentials</div>
-            <div className="mt-1 text-gray-600">Username: Lab &nbsp;•&nbsp; Password: 1234</div>
+            <div className="mt-1 text-gray-600">Username: Laboratory &nbsp;•&nbsp; Password: 1234</div>
             <div className="text-gray-500">2FA Code: shown on the phone (e.g. {nowCode})</div>
           </div>
         </div>
