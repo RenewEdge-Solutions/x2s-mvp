@@ -1,6 +1,6 @@
 import React from 'react';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { getDemoCode } from '../lib/totp';
+import { getDemoCode } from '../lib/totp.js';
 
 type Role = 'Regulator' | 'Auditor' | 'Grower' | 'Shop' | 'Lab' | 'Operator';
 
