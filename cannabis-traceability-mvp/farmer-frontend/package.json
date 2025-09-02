@@ -1,0 +1,31 @@
+{
+  "name": "farmer-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 9000 --force --clearScreen false --host",
+    "dev:debug": "rm -rf node_modules/.vite && rm -rf dist && rm -f tsconfig.tsbuildinfo && vite --port 9000 --force --clearScreen false --host --debug",
+    "dev:clean": "rm -rf node_modules/.vite && rm -rf dist && vite --port 9000 --force --clearScreen false --host",
+    "preview": "vite preview --port 9000"
+  },
+  "dependencies": {
+    "@googlemaps/js-api-loader": "^1.16.10",
+    "lucide-react": "^0.542.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.23.1"
+  },
+  "devDependencies": {
+    "@types/google.maps": "^3.55.12",
+    "@types/node": "^24.3.0",
+    "@types/react": "^18.3.24",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.18",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.3",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.0"
+  }
+}
