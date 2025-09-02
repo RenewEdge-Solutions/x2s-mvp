@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import Card from '../components/Card';
-import { Barcode, ShoppingCart, Trash2, Percent, CreditCard, Receipt, UserCheck, Printer, CircleCheck, Circle, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Barcode, ShoppingCart, Trash2, Percent, CreditCard, Receipt, UserCheck, Printer, CircleCheck, Circle, AlertTriangle, CheckCircle2, Minus, Plus } from 'lucide-react';
 
 type Product = {
   id: string;
@@ -66,6 +66,8 @@ export default function POS() {
 
   const gridRef = useRef<HTMLDivElement | null>(null);
   const [productGridMaxH, setProductGridMaxH] = useState<number | null>(null);
+  const cartListRef = useRef<HTMLDivElement | null>(null);
+  const [cartListMaxH, setCartListMaxH] = useState<number | null>(null);
   useEffect(() => {
     const measure = () => {
       const grid = gridRef.current;
@@ -78,6 +80,20 @@ export default function POS() {
       const rows = 3;
       const maxH = Math.round(itemH * rows + rowGap * (rows - 1));
       if (!Number.isNaN(maxH) && maxH > 0) setProductGridMaxH(maxH);
+
+    // Measure cart list for exactly 8 visible items
+      const list = cartListRef.current;
+      if (list) {
+        const items = list.querySelectorAll('.cart-line');
+        if (items.length > 0) {
+          const item0 = items[0] as HTMLElement;
+          const itemH2 = item0.offsetHeight;
+          const gap = items.length > 1 ? parseFloat(getComputedStyle(items[1] as HTMLElement).marginTop || '8') || 8 : 8;
+      const rows2 = 8;
+          const maxH2 = Math.round(itemH2 * rows2 + gap * (rows2 - 1));
+          if (!Number.isNaN(maxH2) && maxH2 > 0) setCartListMaxH(maxH2);
+        }
+      }
     };
     measure();
     const t1 = window.setTimeout(measure, 60);
@@ -92,7 +108,7 @@ export default function POS() {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
-  }, [productQuery, productCategory]);
+  }, [productQuery, productCategory, cart.length]);
 
   const addBySku = (sku: string) => {
     const p = catalog.find((x) => x.sku.toLowerCase() === sku.toLowerCase());
@@ -331,26 +347,57 @@ export default function POS() {
               {cart.length === 0 ? (
                 <div className="text-sm text-gray-600">No items yet.</div>
               ) : (
-                <div className={`space-y-2 ${cart.length > 3 ? 'max-h-[210px] overflow-y-auto pr-1' : ''}`}>
+                <div ref={cartListRef} className={`space-y-2 ${cart.length > 8 ? 'overflow-y-auto pr-1' : ''}`} style={{ maxHeight: cart.length > 8 && cartListMaxH ? `${cartListMaxH}px` : undefined }}>
                   {cart.map((l) => (
-                    <div key={l.product.id} className="flex items-start justify-between gap-2 rounded-md border border-gray-200 p-2">
+                    <div key={l.product.id} className="cart-line flex items-start justify-between gap-2 rounded-md border border-gray-200 p-2">
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-gray-900 truncate">{l.product.name}</div>
                         <div className="text-xs text-gray-500">{l.product.sku} • ${l.product.price.toFixed(2)} ea</div>
-                        <div className="mt-1 flex items-center gap-2 text-xs">
-                          <label className="inline-flex items-center gap-1">Qty
-                            <input type="number" min={1} max={l.product.stock} value={l.qty} onChange={(e) => {
-                              const v = Math.max(1, Math.min(Number(e.target.value || 1), l.product.stock));
-                              setCart((prev) => prev.map((x) => (x.product.id === l.product.id ? { ...x, qty: v } : x)));
-                            }} className="w-16 rounded border-gray-300" />
-                          </label>
-                          <label className="inline-flex items-center gap-1">
-                            <Percent className="h-3.5 w-3.5 text-gray-500" />
-                            <input type="number" min={0} max={100} value={l.discountPct ?? 0} onChange={(e) => {
-                              const v = Math.max(0, Math.min(100, Number(e.target.value || 0)));
-                              setCart((prev) => prev.map((x) => (x.product.id === l.product.id ? { ...x, discountPct: v } : x)));
-                            }} className="w-20 rounded border-gray-300" /> % off
-                          </label>
+                        <div className="mt-1 flex items-center gap-3 text-xs">
+                          {/* Qty stepper */}
+                          <div className="inline-flex items-center whitespace-nowrap rounded-md border border-gray-300 bg-white shadow-sm overflow-hidden divide-x divide-gray-200">
+                            <button className="px-2 py-1 text-gray-700 hover:bg-gray-50 disabled:opacity-40" onClick={() => setCart(prev => prev.map(x => x.product.id === l.product.id ? { ...x, qty: Math.max(1, l.qty - 1) } : x))} disabled={l.qty <= 1} aria-label="Decrease quantity">
+                              <Minus className="h-3.5 w-3.5" />
+                            </button>
+                            <input
+                              type="number"
+                              min={1}
+                              max={l.product.stock}
+                              value={l.qty}
+                              onChange={(e) => {
+                                const v = Math.max(1, Math.min(Number(e.target.value || 1), l.product.stock));
+                                setCart((prev) => prev.map((x) => (x.product.id === l.product.id ? { ...x, qty: v } : x)));
+                              }}
+                              className="w-12 text-center outline-none border-0 text-sm"
+                              aria-label="Quantity"
+                            />
+                            <button className="px-2 py-1 text-gray-700 hover:bg-gray-50 disabled:opacity-40" onClick={() => setCart(prev => prev.map(x => x.product.id === l.product.id ? { ...x, qty: Math.min(l.product.stock, l.qty + 1) } : x))} disabled={l.qty >= l.product.stock} aria-label="Increase quantity">
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Discount control */}
+                          <div className="inline-flex items-center whitespace-nowrap rounded-md border border-gray-300 bg-white shadow-sm overflow-hidden divide-x divide-gray-200">
+                            <button className="px-2 py-1 text-gray-700 hover:bg-gray-50 disabled:opacity-40" onClick={() => setCart(prev => prev.map(x => x.product.id === l.product.id ? { ...x, discountPct: Math.max(0, (l.discountPct ?? 0) - 5) } : x))} disabled={(l.discountPct ?? 0) <= 0} aria-label="Decrease discount">
+                              <Minus className="h-3.5 w-3.5" />
+                            </button>
+                            <div className="px-1 text-gray-500 shrink-0"><Percent className="h-3.5 w-3.5" aria-hidden /></div>
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={l.discountPct ?? 0}
+                              onChange={(e) => {
+                                const v = Math.max(0, Math.min(100, Number(e.target.value || 0)));
+                                setCart((prev) => prev.map((x) => (x.product.id === l.product.id ? { ...x, discountPct: v } : x)));
+                              }}
+                              className="w-14 text-center outline-none border-0 text-sm"
+                              aria-label="Discount percent"
+                            />
+                            <button className="px-2 py-1 text-gray-700 hover:bg-gray-50 disabled:opacity-40" onClick={() => setCart(prev => prev.map(x => x.product.id === l.product.id ? { ...x, discountPct: Math.min(100, (l.discountPct ?? 0) + 5) } : x))} disabled={(l.discountPct ?? 0) >= 100} aria-label="Increase discount">
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div className="text-right">

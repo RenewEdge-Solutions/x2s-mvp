@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useModule, ModuleName } from '../context/ModuleContext';
-import { Leaf, Wand2, User as UserIcon, ChevronDown, LogOut, Calendar as CalendarIcon, Bell, FileText, Search, Plus, ShieldCheck, Workflow, Scale, Building2 } from 'lucide-react';
+import { Leaf, Wand2, User as UserIcon, ChevronDown, LogOut, Calendar as CalendarIcon, Bell, FileText, Search, Plus, ShieldCheck, Workflow, Scale, Building2, Beaker } from 'lucide-react';
 import { api } from '../lib/api';
 
 export default function NavBar() {
@@ -40,50 +40,18 @@ export default function NavBar() {
             >
               <Workflow className="h-4 w-4" aria-hidden /> Overview
             </Link>
-            {/* Licensing */}
+            {/* Testing */}
             <Link
               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                isActive('/licensing')
+                isActive('/testing')
                   ? 'text-primary bg-primary/10 ring-1 ring-primary/20'
                   : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
               }`}
-              to="/licensing"
+              to="/testing"
             >
-              <Scale className="h-4 w-4" aria-hidden /> Licensing
+              <Beaker className="h-4 w-4" aria-hidden /> Testing
             </Link>
-            {/* Operators */}
-            <Link
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                isActive('/facilities')
-                  ? 'text-primary bg-primary/10 ring-1 ring-primary/20'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-              to="/facilities"
-            >
-              <Building2 className="h-4 w-4" aria-hidden /> Operators
-            </Link>
-            {/* Lifecycle */}
-            <Link
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                isActive('/lifecycle')
-                  ? 'text-primary bg-primary/10 ring-1 ring-primary/20'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-              to="/lifecycle"
-            >
-              <ShieldCheck className="h-4 w-4" aria-hidden /> Lifecycle
-            </Link>
-            {/* Integrity */}
-            <Link
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                isActive('/integrity')
-                  ? 'text-primary bg-primary/10 ring-1 ring-primary/20'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-              to="/integrity"
-            >
-              <ShieldCheck className="h-4 w-4" aria-hidden /> Integrity
-            </Link>
+            {/* Lab app trims nav to Overview, Reports, Calendar */}
             {/* Reports */}
             <Link
               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
@@ -112,8 +80,8 @@ export default function NavBar() {
           <div className="flex items-center gap-3">
             <NotificationsMenu />
             <UserMenu
-              name={user?.firstName || user?.lastName ? `${user?.firstName} ${user?.lastName}`.trim() : user?.username || 'Regulator'}
-              role={user?.role || 'Regulator'}
+              name={user?.firstName || user?.lastName ? `${user?.firstName} ${user?.lastName}`.trim() : user?.username || 'Laboratory'}
+              role={user?.role || 'Lab'}
               onLogout={logout}
             />
           </div>
@@ -175,7 +143,7 @@ function UserMenu({ name, role, org, onLogout }: { name: string; role?: string; 
                 <div className="text-sm font-medium text-gray-900 truncate">{name || 'Regulator'}</div>
                 <div className="text-xs text-gray-500 truncate inline-flex items-center gap-1">
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
-                  {role || 'Regulator'} • {org || 'Authority'}
+                  {role || 'Lab'} • {org || 'Laboratory'}
                 </div>
               </div>
             </div>
@@ -215,7 +183,7 @@ type Notification = {
   title: string;
   message: string;
   severity: 'info' | 'warning' | 'alert';
-  category: 'compliance' | 'inspection' | 'licensing' | 'integrity' | 'reports' | 'capacity';
+  category: 'intake' | 'testing' | 'coa' | 'reports' | 'schedule';
   operator?: string;
   createdAt: string; // ISO
   href?: string;
@@ -250,59 +218,58 @@ function NotificationsMenu() {
       setItems([]);
       return;
     }
-    const capacityAlerts = await api.getEmptyCapacityAlerts();
-
+  // No capacity alerts in lab app
     const now = Date.now();
     const isoAgo = (h: number) => new Date(now - h * 3600_000).toISOString();
 
     const mock: Notification[] = [
       {
-        id: 'capa-001',
-        title: 'CAPA overdue',
-        message: 'Sunrise Processing has not submitted CAPA for Major deficiency (Sanitation).',
-        severity: 'alert',
-        category: 'compliance',
-        operator: 'Sunrise Processing',
-        createdAt: isoAgo(3),
-        href: '/facilities',
-        read: false,
-      },
-      {
-        id: 'insp-101',
-        title: 'Inspection scheduled',
-        message: 'Routine inspection tomorrow at Green Leaf Holdings (09:00).',
+        id: 'intake-001',
+        title: 'Sample received',
+        message: 'Batch B-24-011 (Flower • 5 samples) received at intake.',
         severity: 'info',
-        category: 'inspection',
-        operator: 'Green Leaf Holdings',
-        createdAt: isoAgo(5),
+        category: 'intake',
+        operator: 'Green Fields Co.',
+        createdAt: isoAgo(2),
         href: '/calendar',
         read: false,
       },
       {
-        id: 'lic-777',
-        title: 'Licensing SLA at risk',
-        message: 'Medicanna Labs Ltd application pending background check > 5 days.',
-        severity: 'warning',
-        category: 'licensing',
-        operator: 'Medicanna Labs Ltd',
-        createdAt: isoAgo(8),
-        href: '/wizard',
+        id: 'test-101',
+        title: 'Testing complete',
+        message: 'Pesticides panel completed for Batch B-24-009.',
+        severity: 'info',
+        category: 'testing',
+        operator: 'North Shore Labs',
+        createdAt: isoAgo(4),
+        href: '/reports',
         read: false,
       },
       {
-        id: 'chain-404',
-        title: 'Ledger integrity mismatch',
-        message: 'On-chain total for Licence Fees differs from system ledger (delta 1.2%).',
-        severity: 'alert',
-        category: 'integrity',
+        id: 'coa-777',
+        title: 'COA ready for review',
+        message: 'COA draft generated for Batch B-24-008 (needs sign-off).',
+        severity: 'warning',
+        category: 'coa',
+        operator: 'Island Wellness',
+        createdAt: isoAgo(8),
+        href: '/reports',
+        read: false,
+      },
+      {
+        id: 'sched-404',
+        title: 'Pickup scheduled',
+        message: 'Courier pickup at 15:00 for samples from Sunrise Processing.',
+        severity: 'info',
+        category: 'schedule',
         createdAt: isoAgo(10),
-        href: '/integrity',
+        href: '/calendar',
         read: false,
       },
       {
         id: 'rpt-901',
         title: 'Report ready',
-        message: 'Automated report “Market Sales Summary” has been generated (CSV).',
+        message: 'Automated “Lab TAT Summary” report generated (CSV).',
         severity: 'info',
         category: 'reports',
         createdAt: isoAgo(12),
@@ -311,35 +278,17 @@ function NotificationsMenu() {
       },
     ];
 
-    // Capacity alerts (append a few from API if available)
-    if (capacityAlerts?.overCapacityStructures?.length) {
-      capacityAlerts.overCapacityStructures.slice(0, 2).forEach((s: any, idx: number) => {
-        mock.push({
-          id: `cap-over-${idx}-${s.structureId}`,
-          title: 'Over capacity structure',
-          message: `${s.structureName} at ${s.facilityName} is over capacity (${s.totalPlants}/${s.capacity}).`,
-          severity: 'warning',
-          category: 'capacity',
-          operator: s.facilityName,
-          createdAt: isoAgo(14 + idx),
-          href: '/facilities',
-          read: false,
-        });
-      });
-    }
-
     setItems(mock.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
   };
 
   // Group notifications by category with priority
   const groupedNotifications = useMemo(() => {
     const groups: NotificationGroup[] = [
-      { category: 'compliance', title: 'Compliance', items: items.filter(i => i.category === 'compliance'), priority: 1 },
-      { category: 'inspection', title: 'Inspections', items: items.filter(i => i.category === 'inspection'), priority: 2 },
-      { category: 'licensing', title: 'Licensing', items: items.filter(i => i.category === 'licensing'), priority: 3 },
-      { category: 'integrity', title: 'Integrity', items: items.filter(i => i.category === 'integrity'), priority: 4 },
+      { category: 'intake', title: 'Intake', items: items.filter(i => i.category === 'intake'), priority: 1 },
+      { category: 'testing', title: 'Testing', items: items.filter(i => i.category === 'testing'), priority: 2 },
+      { category: 'coa', title: 'COA', items: items.filter(i => i.category === 'coa'), priority: 3 },
+      { category: 'schedule', title: 'Schedule', items: items.filter(i => i.category === 'schedule'), priority: 4 },
       { category: 'reports', title: 'Reports', items: items.filter(i => i.category === 'reports'), priority: 5 },
-      { category: 'capacity', title: 'Capacity', items: items.filter(i => i.category === 'capacity'), priority: 6 },
     ];
     return groups.filter(g => g.items.length > 0).sort((a, b) => a.priority - b.priority);
   }, [items]);
@@ -412,7 +361,7 @@ function NotificationsMenu() {
                           <div className={`mt-0.5 h-6 w-6 rounded-full flex items-center justify-center text-white text-[11px] ${
                             n.severity === 'alert' ? 'bg-red-500' : n.severity === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
                           }`} aria-hidden>
-                            {n.category === 'integrity' ? '⛓' : n.category === 'inspection' ? '🗓' : n.category === 'reports' ? '⬇' : n.category === 'capacity' ? '🏗' : n.category === 'licensing' ? '⚖' : '✔'}
+                            {n.category === 'coa' ? '📄' : n.category === 'schedule' ? '🗓' : n.category === 'reports' ? '⬇' : n.category === 'testing' ? '🧪' : n.category === 'intake' ? '📦' : '✔'}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
@@ -467,6 +416,8 @@ function ModuleSwitcher({ active, modules }: { active: ModuleName; modules: Modu
   }, []);
 
   const labelFor = (m: ModuleName) => m.charAt(0).toUpperCase() + m.slice(1);
+  // Enforce Cannabis-only in dropdown for Lab app
+  const list: ModuleName[] = (modules || []).filter((m) => m === 'cannabis');
 
   return (
     <div className="relative" ref={ref}>
@@ -479,9 +430,9 @@ function ModuleSwitcher({ active, modules }: { active: ModuleName; modules: Modu
         <span className="font-medium">{labelFor(active)}</span>
         <ChevronDown className="h-4 w-4 text-gray-400" aria-hidden />
       </button>
-      {open && (
+    {open && (
         <div className="absolute left-0 mt-2 w-44 rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-50">
-          {modules.map((m) => (
+      {list.map((m) => (
             <button
               key={m}
               type="button"
@@ -510,14 +461,11 @@ function SearchBox() {
   const ref = useRef<HTMLDivElement>(null);
 
   const ROUTES = [
-    { label: 'Overview', path: '/dashboard', keywords: 'home overview kpi dashboard' },
-    { label: 'Licensing wizard', path: '/wizard', keywords: 'license onboarding register apply' },
-    { label: 'Lifecycle', path: '/lifecycle', keywords: 'trace seed-to-sale stages chain custody' },
-    { label: 'Calendar', path: '/calendar', keywords: 'inspection schedule events' },
-    { label: 'Reports', path: '/reports', keywords: 'pdf summary export compliance' },
-    { label: 'Integrity', path: '/integrity', keywords: 'blockchain audit tamper-evident history' },
-  { label: 'Operators', path: '/facilities', keywords: 'operators license holders capacity occupancy structures rooms companies farms' },
-    { label: 'Profile', path: '/profile', keywords: 'user account settings' },
+  { label: 'Overview', path: '/dashboard', keywords: 'home overview kpi dashboard' },
+  { label: 'Testing', path: '/testing', keywords: 'lab testing panels potency pesticides microbials metals' },
+  { label: 'Calendar', path: '/calendar', keywords: 'schedule pickup calibration meeting' },
+  { label: 'Reports', path: '/reports', keywords: 'pdf csv coa tat results' },
+  { label: 'Profile', path: '/profile', keywords: 'user account settings' },
   ];
 
   const results = useMemo(() => {

@@ -13,24 +13,22 @@ const Ctx = createContext<ModuleCtx | undefined>(undefined);
 
 export function ModuleProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  // Lab app: enforce Cannabis-only module and normalize any saved or user-provided values
   const [activeModule, setActiveModule] = useState<ModuleName>(() => {
-    const saved = (localStorage.getItem('activeModule') || 'cannabis') as ModuleName;
-    return saved;
+    const raw = String(localStorage.getItem('activeModule') || 'cannabis').toLowerCase();
+    return 'cannabis';
   });
 
   const availableModules = useMemo<ModuleName[]>(() => {
-    const mods = (user?.modules || ['cannabis']) as string[];
-    // Normalize possible misspelling "alkohol" => "alcohol"
-    return mods.map((m) => (m === 'alkohol' ? 'alcohol' : (m as ModuleName))) as ModuleName[];
-  }, [user?.modules]);
+    return ['cannabis'];
+  }, []);
 
   // Reconcile stored module with user's available set
   useEffect(() => {
-    if (!availableModules.includes(activeModule)) {
-      setActiveModule(availableModules[0] || 'cannabis');
-    }
+    // Always correct any stray value back to cannabis
+    if (activeModule !== 'cannabis') setActiveModule('cannabis');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableModules.join('|')]);
+  }, [activeModule]);
 
   useEffect(() => {
     localStorage.setItem('activeModule', activeModule);

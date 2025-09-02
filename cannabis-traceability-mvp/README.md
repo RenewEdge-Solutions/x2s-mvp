@@ -103,7 +103,88 @@ cd laboratory-frontend && npm install && npm run dev # :9005
 - Reports
 	- Snapshot and automated report lists styled consistently with Regulator.
 
-## 👋 What’s new (Welcome Frontend)
+## 🧪 What’s new (Laboratory Frontend)
+
+- Navigation
+	- Removed Licensing, Operators, Lifecycle, and Integrity from the lab navbar and routes (redirects to Dashboard if visited).
+	- Added a dedicated Testing page for intake → testing → review → COA workflow.
+- Authentication & Profile
+	- Default role set to Lab in the lab app; login screen defaults to Username “Laboratory”.
+	- 2FA seed changed to LAB-DEMO (code displayed on the phone mock).
+	- Profile shows lab-relevant modules and address.
+- Dashboard
+	- Reworked to lab KPIs (Samples in queue, TAT, COA status) and panels (Potency, Pesticides, Microbials, Heavy metals).
+	- Alerts section simplified to lab-relevant notices.
+- Calendar
+	- Shows only lab-created events; removed cultivation lifecycle overlays.
+	- Quick-add menu uses lab items: Sample pickup, Testing, COA due, Instrument calibration, Client meeting.
+- Reports
+	- Replaced with lab-focused groups: COA & Results, Turnaround Time, Operational.
+- Notifications
+	- Adjusted categories and entries for Intake, Testing, COA, Schedule, and Reports.
+- Typography
+	- Standardized page titles to the same H1 style across Lab pages.
+
+## � Screenshots (MVP highlights)
+
+Screenshots are in `./screenshots`. A few key views:
+
+- Welcome: `screenshots/welcome.png`
+- Regulator: `screenshots/regulator-dashboard.png`, `screenshots/regulator-calendar.png`
+- Auditor: `screenshots/auditor-dashboard.png`
+- Farmer: `screenshots/farmer-production.png`
+- Retail: `screenshots/retail-pos.png`
+- Laboratory: `screenshots/laboratory-dashboard.png`, `screenshots/laboratory-testing.png`, `screenshots/laboratory-calendar.png`, `screenshots/laboratory-reports.png`
+
+Generate them automatically (optional):
+
+1) Start the stack: `docker compose up --build`
+2) In another terminal:
+	 - `cd tools/screenshots`
+	 - `npm install`
+	 - `npm run setup`
+	 - `npm run capture`
+
+Images will be saved into `./screenshots` at repo root.
+
+## 📦 One-file Docker Desktop Release
+
+Goal: let someone import one artifact into Docker Desktop and run the MVP without building locally.
+
+Approach options:
+
+1) Save images after building locally (simple)
+	 - Build once: `docker compose build`
+	 - Export all relevant images into a single tar:
+		 - macOS/Linux: `docker image save $(docker compose config --images) -o cannabis-mvp-images.tar`
+	 - Share `cannabis-mvp-images.tar`.
+	 - User imports in Docker Desktop: Images > Load (or `docker image load -i cannabis-mvp-images.tar`).
+	 - Then run: `docker compose up` (no rebuild needed).
+
+2) Pre-bake dev servers into static images and provide a Compose + images pack (recommended for releases)
+	 - After building, create a `release` folder with:
+		 - `docker-compose.yml`
+		 - `images.tar` (from step 1)
+	 - User downloads the folder as a single archive and:
+		 - Loads images tar
+		 - Opens the compose file in Docker Desktop and clicks Run.
+
+Notes
+- This repo uses Vite dev servers inside containers for fast demos; exporting images preserves node_modules from the build step so users don’t need internet to install packages at runtime.
+- If ports 9000–9005 are busy on the user’s machine, adjust the port mappings in `docker-compose.yml` before export or instruct users how to change them.
+
+Automating the export
+
+You can generate the single tar of all service images with:
+
+```
+docker compose build
+docker image save $(docker compose config --images) -o cannabis-mvp-images.tar
+```
+
+Distribute `cannabis-mvp-images.tar` together with the repository (or just the `cannabis-traceability-mvp` folder). The user can load images and run `docker compose up` without builds.
+
+## �👋 What’s new (Welcome Frontend)
 
 - Header icon updated: replaced the solid green rectangle with the shared Leaf brand icon inside an emerald ring to match the frontends’ navbar branding.
 

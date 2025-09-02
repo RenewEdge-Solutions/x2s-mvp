@@ -82,11 +82,6 @@ export default function Dashboard() {
 
   return (
   <div className="space-y-4">
-    <div className="flex items-center justify-between">
-      <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2">
-        <ShoppingCart className="h-6 w-6 text-emerald-600" aria-hidden /> Overview
-      </h1>
-    </div>
 
       {/* KPIs */}
   <div className="grid grid-cols-1 md:grid-cols-6 gap-3">

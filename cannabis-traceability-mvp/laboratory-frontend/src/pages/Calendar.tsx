@@ -3,15 +3,14 @@ import { useSearchParams } from 'react-router-dom';
 import Card from '../components/Card';
 import { useModule } from '../context/ModuleContext';
 import { Calendar as CalendarIcon, Plus, X, RefreshCw, Edit, Trash2, ChevronDown, Loader2 } from 'lucide-react';
-import { computeEventsForCannabis, eventColor } from '../lib/calendar';
+import { eventColor } from '../lib/calendar';
 import { mockOperators } from '../lib/mockOperators';
 import { api } from '../lib/api';
 
 export default function Calendar() {
   const { activeModule } = useModule();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [plants, setPlants] = useState<any[]>([]);
-  const [harvests, setHarvests] = useState<any[]>([]);
+  // Lab view: no cultivation plants/harvests
   const [cursor, setCursor] = useState(new Date());
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [showEventDetailModal, setShowEventDetailModal] = useState(false);
@@ -35,43 +34,43 @@ export default function Calendar() {
     operator: ''
   });
 
-  // Load minimal data for event computation plus regulator events
+  // Load mock lab calendar events (unconditional seeding for demo)
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (activeModule !== 'cannabis') {
-        setPlants([]);
-        setHarvests([]);
-        setCustomEvents([]);
-        setOperators([]);
-        return;
-      }
-      const [pl, hv, ev] = await Promise.all([
-        api.getPlants(),
-        api.getHarvests(),
-        api.getEvents(),
-      ]);
       if (cancelled) return;
-      setPlants(pl);
-      setHarvests(hv);
-      // Map API events to customEvents format for clickable details
-      setCustomEvents(
-        ev.map((e: any) => ({
-          id: e.id,
-          title: e.title,
-          date: new Date(e.startDate),
-          label: e.title,
-          isCustom: true,
-          description: e.location ? `Location: ${e.location}` : undefined,
-          operator: e.metadata?.operator || '',
-        }))
-      );
+      // Lab app: preload a few lab‑specific upcoming items so the calendar isn't empty
+      const now = new Date();
+      const d = (n:number)=> new Date(now.getFullYear(), now.getMonth(), now.getDate()+n);
+      const seed = [
+        { id: 1, title: 'Instrument calibration: GC-MS', date: d(2), label: 'GC-MS calibration', isCustom: true, description: 'Quarterly calibration (10:00–12:00)' },
+        { id: 2, title: 'Sample pickup: Island Wellness', date: d(1), label: 'Pickup: Island Wellness', isCustom: true, description: 'Courier window 14:00–16:00' },
+        { id: 3, title: 'COA due: B-24-011', date: d(3), label: 'COA due: B-24-011', isCustom: true, description: 'Panels: Potency, Microbials' },
+        { id: 4, title: 'Client review: B-24-009', date: d(4), label: 'Client review: B-24-009', isCustom: true, description: 'Zoom with Island Wellness QA' },
+        { id: 5, title: 'Proficiency testing: Microbials', date: d(6), label: 'PT: Microbials', isCustom: true, description: 'External PT round submission' },
+        { id: 6, title: 'Instrument maintenance: HPLC', date: d(5), label: 'HPLC maintenance', isCustom: true, description: 'Replace column; validate' },
+        { id: 7, title: 'Sample pickup: GreenLeaf Farms', date: d(0), label: 'Pickup: GreenLeaf', isCustom: true, description: 'Courier window 09:00–11:00' },
+        { id: 8, title: 'Staff training: LIMS SOP update', date: d(7), label: 'SOP training', isCustom: true, description: 'Internal SOP v2.3' },
+        { id: 9, title: 'QA review meeting', date: d(2), label: 'QA review', isCustom: true, description: 'Weekly quality meeting 16:00' },
+        { id: 10, title: 'Method validation: Residual solvents', date: d(8), label: 'Method validation', isCustom: true, description: 'Finalize validation report' },
+        { id: 11, title: 'Audit prep: documentation', date: d(9), label: 'Audit prep', isCustom: true, description: 'Compile SOPs and logs' },
+        { id: 12, title: 'COA sign-off: B-24-020', date: d(1), label: 'COA sign-off: B-24-020', isCustom: true, description: 'Director signature required' },
+        { id: 13, title: 'Courier drop-off window', date: d(-1), label: 'Courier drop-off', isCustom: true, description: '09:00–10:00' },
+        { id: 14, title: 'Proficiency results returned', date: d(10), label: 'PT results', isCustom: true, description: 'Review and file' },
+    { id: 15, title: 'Reference standards reorder', date: d(11), label: 'Standards reorder', isCustom: true, description: 'Order cannabinoid mix CRM' },
+    { id: 16, title: 'Safety audit walkthrough', date: d(-3), label: 'Safety audit', isCustom: true, description: 'Check PPE logs and eyewash' },
+    { id: 17, title: 'Fume hood certification', date: d(12), label: 'Hood certification', isCustom: true, description: 'Annual cert 13:00–15:00' },
+    { id: 18, title: 'Gas cylinder change', date: d(0), label: 'Gas change', isCustom: true, description: 'Replace nitrogen cylinder' },
+    { id: 19, title: 'Inventory count: reagents', date: d(5), label: 'Inventory count', isCustom: true, description: 'Quarterly stocktake' },
+    { id: 20, title: 'LIMS backup & verify', date: d(13), label: 'LIMS backup', isCustom: true, description: 'Run backup, verify restore' },
+      ];
+      setCustomEvents(seed as any[]);
       // Use shared mock operators list for consistency
       setOperators(mockOperators);
     }
     load();
     return () => { cancelled = true; };
-  }, [activeModule]);
+  }, []);
 
   // Handle opening specific event from URL parameter
   useEffect(() => {
@@ -107,15 +106,10 @@ export default function Calendar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showTimePicker]);
 
-  // Combine system-computed cultivation events with regulator scheduled items
+  // Lab calendar: only custom/scheduled lab items
   const events = useMemo(() => {
-    // Exclude farmer-facing cultivation events from regulator calendar
-    const computed = computeEventsForCannabis(plants, harvests).filter((e: any) => !['harvest', 'transplant', 'drying-check'].includes(String(e?.type)));
-    return [
-      ...computed,
-      ...customEvents,
-    ] as any[];
-  }, [cursor, plants, harvests, customEvents]);
+    return [...customEvents] as any[];
+  }, [cursor, customEvents]);
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -298,9 +292,9 @@ export default function Calendar() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2">
-          <CalendarIcon className="h-6 w-6" aria-hidden /> Calendar
+    <div className="flex items-center justify-between">
+  <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2">
+          <CalendarIcon className="h-6 w-6 text-emerald-600" aria-hidden /> Calendar
         </h1>
     <div className="flex items-center gap-3">
           <div className="relative">
@@ -329,12 +323,11 @@ export default function Calendar() {
             {addOpen && (
               <div className="absolute right-0 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-50">
                 {[
-                  { label: 'Inspection', hint: 'Facility/site inspection' },
-                  { label: 'Compliance audit', hint: 'Process/records audit' },
-                  { label: 'Sampling', hint: 'Field or product sampling' },
+                  { label: 'Sample pickup', hint: 'Courier pickup from client' },
+                  { label: 'Testing', hint: 'Panel testing scheduled' },
                   { label: 'COA due', hint: 'Certificate of analysis deadline' },
-                  { label: 'Follow-up CAPA', hint: 'Corrective action review' },
-                  { label: 'Enforcement action', hint: 'Notice, sanction, or seizure' },
+                  { label: 'Instrument calibration', hint: 'Calibration or maintenance' },
+                  { label: 'Client meeting', hint: 'Results review with client' },
                 ].map((opt) => (
                   <button
                     key={opt.label}
@@ -409,12 +402,7 @@ export default function Calendar() {
         </div>
       )}
 
-      {activeModule !== 'cannabis' ? (
-        <Card>
-          <p className="text-sm text-gray-600">Calendar for {activeModule} is not yet implemented in this MVP.</p>
-        </Card>
-      ) : (
-        <Card>
+  <Card>
           <div className="grid grid-cols-7 text-xs text-gray-500 mb-2">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
               <div key={d} className="px-2 py-1">
@@ -476,8 +464,7 @@ export default function Calendar() {
               </React.Fragment>
             ))}
           </div>
-        </Card>
-      )}
+  </Card>
 
       {/* Add Event Modal */}
       {showAddEventModal && (
