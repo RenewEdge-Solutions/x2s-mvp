@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const target = process.env.VITE_API_URL || env.VITE_API_URL || '';
+  const hmrPort = Number(process.env.VITE_HMR_PORT || env.VITE_HMR_PORT || '24678');
   return {
     plugins: [
       react({
@@ -30,9 +31,10 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       hmr: {
         overlay: true,
-        clientPort: 9000,
-        host: 'localhost',
-        protocol: 'ws'
+  port: hmrPort,
+  clientPort: hmrPort,
+  host: 'localhost',
+  protocol: 'ws'
       },
       proxy: {}
     },

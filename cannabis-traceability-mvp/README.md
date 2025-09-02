@@ -16,16 +16,16 @@ docker compose up --build
 ```
 
 Services and ports:
-- Welcome Frontend: http://localhost:9000 (Landing)
+- Welcome Frontend: http://localhost:9000 (HMR 24678)
 - Regulator Frontend: http://localhost:9001 (HMR 24679)
-- Auditor Frontend: http://localhost:9002
-- Farmer Frontend: http://localhost:9003 (run locally; no docker service yet)
+- Auditor Frontend: http://localhost:9002 (HMR 24680)
+- Farmer Frontend: http://localhost:9003 (container port 9000; HMR 24682)
 - Shop Frontend: http://localhost:9004 (HMR 24680)
 - Laboratory Frontend: http://localhost:9005 (HMR 24681)
 
 Notes:
 - Ensure host ports 9000–9005 are free.
-- HMR ports used: 24678 (welcome), 24679 (regulator), 24680 (shop), 24681 (lab).
+- HMR ports: 24678 (welcome), 24679 (regulator), 24680 (auditor/shop), 24681 (lab), 24682 (farmer).
 
 ## 🧪 Running Locally (without Docker)
 
@@ -36,6 +36,7 @@ Frontends (in separate terminals):
 cd welcome-frontend && npm install && npm run dev    # :9000
 cd regulator-frontend && npm install && npm run dev  # :9001
 cd auditor-frontend && npm install && npm run dev    # :9002
+cd farmer-frontend && npm install && npm run dev     # :9003
 cd shop-frontend && npm install && npm run dev       # :9004
 cd laboratory-frontend && npm install && npm run dev # :9005
 ```
@@ -58,17 +59,11 @@ VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
 - http://localhost:*/*
 - http://127.0.0.1:*/*
 
-## 📝 Recent UI Changes
+## � Demo Credentials (all role apps)
 
-- Regulator dashboard simplified to only show “Welcome, Regula Tor”.
-- Regulator calendar keeps UI but shows an empty calendar (no DB-backed events).
-- Auditor calendar adds mock “Add Event” and “Sync” buttons (local-only behavior).
-
-1. 🔐 Login as `Farmer` / `1234` (2FA: any 6 digits)
-2. 🧙‍♂️ Open Wizard
-3. 🌱 Plant seed (select strain + location) → View computed hash
-4. 🌾 Harvest from created plant → View updated hash
-5. 📊 Explore Lifecycle and Blockchain Integrity views
+- Username: Regulator | Auditor | Farmer | Shop | Laboratory
+- Password: 1234
+- 2FA: A rotating 6‑digit code shown on the device mock in each app.
 
 ## ⚙️ Configuration
 
