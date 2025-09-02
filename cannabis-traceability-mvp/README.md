@@ -20,8 +20,8 @@ Services and ports:
 - Regulator Frontend: http://localhost:9001 (HMR 24679)
 - Auditor Frontend: http://localhost:9002 (HMR 24680)
 - Farmer Frontend: http://localhost:9003 (container port 9000; HMR 24682)
- - Retail Frontend: http://localhost:9004 (HMR 24680)
-- Laboratory Frontend: http://localhost:9005 (HMR 24681)
+ - Retail Frontend: http://localhost:9004 (HMR 24683)
+ - Laboratory Frontend: http://localhost:9005 (HMR 24681)
 
 Notes:
 - Ensure host ports 9000–9005 are free.
@@ -40,6 +40,16 @@ cd farmer-frontend && npm install && npm run dev     # :9003
 cd retail-frontend && npm install && npm run dev     # :9004
 cd laboratory-frontend && npm install && npm run dev # :9005
 ```
+
+## 🛍️ What’s new (Retail Frontend)
+
+- POS
+	- Simplified thermal-style receipt that prints via an in-page overlay (no extra windows/tabs). Uses window.print with afterprint cleanup.
+	- Product grid constrained to exactly 3 visible rows; additional items scroll within the grid.
+	- Customer DOB input enforces a maximum date of “today minus 18 years.”
+	- Local image assets by SKU under `retail-frontend/public/images/products` with graceful fallback.
+	- Inventory page now uses the same local SKU-based images for consistency.
+	- Minor UI polish and consistent page header/title icon.
 
 ## ✨ What’s new (Regulator Frontend)
 
