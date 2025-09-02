@@ -242,7 +242,17 @@ Approach options:
 
 		## � One‑file Docker Desktop release
 
-		Export all images into a single tar so users can import once and run without builds:
+		Download a single bundle from GitHub Releases and run the MVP without building.
+
+		Option A — Use the prebuilt bundle (recommended)
+
+		1) Download cannabis-mvp-bundle.zip from the latest Release
+		2) In Docker Desktop:
+			- Images > Load > pick cannabis-mvp-images.tar from the zip
+			- Containers > Create from compose > pick compose.yml
+			- Run
+
+		Option B — Build locally and create the bundle yourself
 
 		```bash
 		docker compose build
@@ -251,6 +261,8 @@ Approach options:
 
 		- Import via Docker Desktop (Images → Load) or CLI: `docker image load -i cannabis-mvp-images.tar`.
 		- Then run: `docker compose up`.
+
+		Helper script (local): `cannabis-traceability-mvp/tools/release/export-images.sh` builds, exports, and zips a ready‑to‑share bundle.
 
 		Optional helper script (if present): `tools/release/export-images.sh` performs the build + export.
 

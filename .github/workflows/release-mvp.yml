@@ -1,0 +1,82 @@
+name: Build and Release MVP Bundle
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'release-*'
+  release:
+    types: [published]
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build images with Docker Compose
+        working-directory: cannabis-traceability-mvp
+        run: |
+          docker compose build
+
+      - name: Save images to single tar
+        id: save
+        working-directory: cannabis-traceability-mvp
+        run: |
+          IMAGES=$(docker compose config --images)
+          echo "Images: $IMAGES"
+          docker image save $IMAGES -o cannabis-mvp-images.tar
+          ls -lh cannabis-mvp-images.tar
+
+      - name: Create bundle zip (images + compose + quickstart)
+        working-directory: cannabis-traceability-mvp
+        run: |
+          BUNDLE_DIR=../mvp-bundle
+          mkdir -p "$BUNDLE_DIR"
+          cp docker-compose.yml "$BUNDLE_DIR/compose.yml"
+          cp cannabis-mvp-images.tar "$BUNDLE_DIR/"
+          cat > "$BUNDLE_DIR/QUICKSTART.txt" <<'TXT'
+          MVP Bundle (Docker Desktop)
+          ---------------------------------
+          Files:
+          - cannabis-mvp-images.tar  (prebuilt images)
+          - compose.yml              (Docker Compose to run all apps)
+
+          Steps:
+          1) In Docker Desktop: Images > Load > select cannabis-mvp-images.tar
+          2) In Docker Desktop: Containers > Create from compose > select compose.yml
+          3) Click Run. Apps:
+             - Welcome:    http://localhost:9000
+             - Regulator:  http://localhost:9001
+             - Auditor:    http://localhost:9002
+             - Farmer:     http://localhost:9003
+             - Retail:     http://localhost:9004
+             - Laboratory: http://localhost:9005
+          Credentials: Username (Regulator|Auditor|Farmer|Retail|Laboratory), Password 1234
+          TXT
+          (cd "$BUNDLE_DIR" && zip -r ../cannabis-mvp-bundle.zip .)
+          ls -lh ../cannabis-mvp-bundle.zip
+
+      - name: Upload bundle as artifact (for run logs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: cannabis-mvp-bundle
+          path: |
+            cannabis-traceability-mvp/cannabis-mvp-images.tar
+            cannabis-mvp-bundle.zip
+
+      - name: Attach assets to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            cannabis-traceability-mvp/cannabis-mvp-images.tar
+            cannabis-mvp-bundle.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
