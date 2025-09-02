@@ -16,6 +16,20 @@ export default function Login() {
     return () => clearInterval(t);
   }, []);
 
+  // Prefill the 2FA code when the step begins to avoid confusion with the placeholder.
+  useEffect(() => {
+    if (is2FARequired && !code) {
+      setCode(getDemoCode('AUDITOR-DEMO'));
+    }
+  }, [is2FARequired]);
+
+  // Keep code in sync with the rotating demo code if the user hasn't modified it.
+  useEffect(() => {
+    if (is2FARequired && (code === '' || code === nowCode)) {
+      setCode(nowCode);
+    }
+  }, [nowCode, is2FARequired]);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!is2FARequired) await login(username, password);
@@ -23,7 +37,9 @@ export default function Login() {
 
   const onVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    await verify2FA(code);
+    // Use trimmed, numeric-only value just in case
+    const sanitized = (code || '').replace(/\D/g, '').slice(0, 6);
+    await verify2FA(sanitized);
     navigate('/dashboard');
   };
 
@@ -34,10 +50,10 @@ export default function Login() {
         <div className="relative hidden md:block bg-white rounded-2xl border border-gray-200 shadow-sm p-10 overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(#22c55e_1px,transparent_1px)] [background-size:16px_16px] opacity-10" />
           <h2 className="text-3xl font-bold text-gray-900">Auditor Portal</h2>
-          <p className="mt-2 text-gray-600">Secure access to audits, integrity, and reports.</p>
+          <p className="mt-2 text-gray-600">Secure access to audit dashboards and reporting.</p>
           <ul className="mt-6 space-y-2 text-sm text-gray-700">
             <li>• Role: Auditor</li>
-            <li>• Access: Read-only, Integrity checks, Reports</li>
+            <li>• Access: Audit Trails, Reports, Integrity</li>
             <li>• Compliance-grade session with 2FA</li>
           </ul>
 
@@ -98,12 +114,14 @@ export default function Login() {
                 <div className="flex gap-2">
                   <input
                     value={code}
-                    onChange={(e) => setCode(e.target.value)}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder={nowCode}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
                     className="mt-1 w-full rounded-lg border-gray-300 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                 </div>
-                <p className="mt-1 text-xs text-gray-500">Enter the code shown on the device mock (auto refreshes every 30s).</p>
+                <p className="mt-1 text-xs text-gray-500">Enter the current code from AUDITOR-DEMO (auto refreshes every 30s).</p>
               </div>
               <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg py-2.5 font-medium transition">Verify</button>
             </form>
@@ -112,7 +130,7 @@ export default function Login() {
           <div className="mt-6 rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm text-gray-700">
             <div className="font-medium">Demo credentials</div>
             <div className="mt-1 text-gray-600">Username: Auditor &nbsp;•&nbsp; Password: 1234</div>
-            <div className="text-gray-500">2FA Code: shown on the phone (e.g. {nowCode})</div>
+            <div className="text-gray-500">2FA Code: from AUDITOR-DEMO (e.g. {nowCode})</div>
           </div>
         </div>
       </div>

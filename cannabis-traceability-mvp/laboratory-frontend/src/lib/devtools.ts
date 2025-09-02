@@ -10,7 +10,7 @@ export function enableDevTools() {
     if (typeof window !== 'undefined') {
       (window as any).debugApp = {
         // Add API debugging helper
-        api: () => import('../lib/api'),
+        api: () => import('./api'),
         // Clear all localStorage
         clearStorage: () => {
           localStorage.clear();

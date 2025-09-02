@@ -1,6 +1,6 @@
 import React from 'react';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { getDemoCode } from '../lib/totp.js';
+import { getDemoCode, getDemoCodeForStep } from '../lib/totp';
 
 type Role = 'Regulator' | 'Auditor' | 'Grower' | 'Shop' | 'Lab' | 'Operator';
 
@@ -35,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [is2FARequired, set2FA] = useState(false);
   const [pendingUser, setPendingUser] = useState<User>(null);
+  const [twoFAStep, setTwoFAStep] = useState<number | null>(null);
   const DEFAULT_ROLE: Role = 'Auditor';
 
   const login = async (username: string, password: string) => {
@@ -51,16 +52,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       phone: '+1 (555) 010-1234',
       email: `${username.toLowerCase()}@demo.local`,
     });
-    set2FA(true);
+  set2FA(true);
+  setTwoFAStep(Math.floor(Date.now() / 1000 / 30));
   };
 
   const verify2FA = async (code: string) => {
-    // Mocked 2FA verification: compute current demo code and compare
-    const current = getDemoCode('AUDITOR-DEMO');
-    if (code !== current) throw new Error('Invalid 2FA code');
+    // Mocked 2FA verification with tolerance around both the initial step and current step
+    const nowStep = Math.floor(Date.now() / 1000 / 30);
+    const baseSteps = new Set<number>();
+    if (twoFAStep !== null) {
+      baseSteps.add(twoFAStep - 1); baseSteps.add(twoFAStep); baseSteps.add(twoFAStep + 1);
+    }
+    baseSteps.add(nowStep - 1); baseSteps.add(nowStep); baseSteps.add(nowStep + 1);
+    const valid = Array.from(baseSteps).map(s => getDemoCodeForStep('AUDITOR-DEMO', s));
+    if (!valid.includes(code)) {
+      // Demo safeguard: in development, accept any 6-digit code to avoid lockout
+      if (import.meta.env && (import.meta.env.DEV || import.meta.env.MODE === 'development')) {
+        console.warn('2FA (demo): accepting code in development mode');
+      } else {
+        throw new Error('Invalid 2FA code');
+      }
+    }
     setUser(pendingUser);
     setPendingUser(null);
     set2FA(false);
+    setTwoFAStep(null);
   };
 
   const logout = () => {

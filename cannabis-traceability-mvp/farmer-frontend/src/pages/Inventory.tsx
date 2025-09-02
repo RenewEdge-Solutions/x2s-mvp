@@ -1,682 +1,259 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Card from '../components/Card';
-import { useModule } from '../context/ModuleContext';
-import { api } from '../lib/api';
-import { Package as PackageIcon, Scissors, Plus, X, ChevronDown, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Package, Boxes, Layers } from 'lucide-react';
+
+type InvItem = {
+  id: string;
+  sku: string;
+  name: string;
+  category: 'Flower' | 'Trim' | 'Pre-roll' | 'Oil' | 'Edible' | 'Packaging' | 'Nutrients' | 'Supplies';
+  strain?: string;
+  batchId?: string;
+  facility: string;
+  location: string;
+  quantity: number;
+  uom: 'g' | 'kg' | 'units' | 'L';
+  status: 'Available' | 'Quarantined' | 'Locked' | 'Reserved';
+  updatedAt: string; // ISO
+};
+
+const seedInv: InvItem[] = Array.from({ length: 32 }).map((_, i) => {
+  const categories: InvItem['category'][] = ['Flower', 'Trim', 'Pre-roll', 'Oil', 'Edible', 'Packaging', 'Nutrients', 'Supplies'];
+  const cat = categories[i % categories.length];
+  const strains = ['Blue Dream', 'OG Kush', 'Sour Diesel', 'Gelato', 'Gorilla Glue', 'Pineapple Express'];
+  const fac = ['Farm HQ', 'Greenhouse 1', 'Greenhouse 2', 'Indoor Room 1', 'Indoor Room 2'];
+  const loc = ['Dry Room 1', 'Cure Room A', 'Vault', 'Packaging Line', 'Veg Room 2', 'Flower Room 1'];
+  const sku = `${cat.slice(0,3).toUpperCase()}-${(1000 + i).toString()}`;
+  const uom = cat === 'Flower' || cat === 'Trim' ? (i % 4 === 0 ? 'kg' : 'g') : 'units';
+  const qty = uom === 'units' ? 200 - (i * 3 % 50) : (uom === 'kg' ? 12 - (i % 4) : 5000 - (i * 91));
+  return {
+    id: `INV-${(20250900 + i).toString()}`,
+    sku,
+    name: cat === 'Pre-roll' ? `${strains[i % strains.length]} 1g pre-roll` : cat === 'Packaging' ? 'Child-resistant Jars (90mm)' : cat,
+    category: cat,
+    strain: ['Flower','Trim','Pre-roll','Oil'].includes(cat) ? strains[i % strains.length] : undefined,
+    batchId: ['Flower','Trim','Pre-roll','Oil'].includes(cat) ? `B-23-${100 + (i % 20)}` : undefined,
+    facility: fac[i % fac.length],
+    location: loc[i % loc.length],
+    quantity: Math.max(0, qty),
+    uom: uom as InvItem['uom'],
+    status: (['Available','Quarantined','Locked','Reserved'] as InvItem['status'][])[i % 4],
+    updatedAt: new Date(Date.now() - i * 86400000).toISOString(),
+  };
+});
 
 export default function Inventory() {
-  const { activeModule } = useModule();
-  const [harvests, setHarvests] = useState<any[]>([]);
-  const [facilities, setFacilities] = useState<any[]>([]);
-  const [structures, setStructures] = useState<any[]>([]);
-  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('');
-  const [formData, setFormData] = useState<any>({});
-  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{id: string, name: string} | null>(null);
+  const [items, setItems] = useState<InvItem[]>(seedInv);
+  const [openAdd, setOpenAdd] = useState(false);
+  const [filters, setFilters] = useState({ q: '', category: 'All', status: 'All' });
 
-  // Cannabis inventory categories and subcategories
-  const inventoryCategories = {
-    'Live Plants': ['Seeds', 'Clones'],
-    'Growing Supplies': ['Nutrients', 'Growing Medium']
-  };
+  const categories = useMemo(() => ['All', ...Array.from(new Set(items.map(i => i.category)))], [items]);
+  const statuses = ['All', 'Available', 'Quarantined', 'Locked', 'Reserved'];
+  const totalQty = items.reduce((sum, it) => sum + (it.uom === 'units' ? 0 : it.quantity), 0);
+  const unitCount = items.filter(i => i.uom === 'units').reduce((sum, it) => sum + it.quantity, 0);
+  const batches = Array.from(new Set(items.map(i => i.batchId).filter(Boolean))) as string[];
 
-  const itemTypes = {
-    'Live Plants': {
-      'Seeds': ['Regular Seeds', 'Feminized Seeds', 'Autoflower Seeds'],
-      'Clones': [] // No item types needed for clones
-    },
-    'Growing Supplies': {
-      'Nutrients': ['Base Nutrients', 'Supplements', 'pH Adjusters', 'Cal-Mag'],
-      'Growing Medium': ['Soil', 'Coco Coir', 'Perlite', 'Vermiculite', 'Rockwool']
-    }
-  };
+  const filtered = items.filter(it => {
+    const byQ = filters.q ? `${it.name} ${it.sku} ${it.strain||''} ${it.batchId||''}`.toLowerCase().includes(filters.q.toLowerCase()) : true;
+    const byC = filters.category === 'All' ? true : it.category === (filters.category as any);
+    const byS = filters.status === 'All' ? true : it.status === (filters.status as any);
+    return byQ && byC && byS;
+  });
 
-  useEffect(() => {
-    if (activeModule === 'cannabis') {
-      api.getHarvests().then(setHarvests);
-      // Fetch all structures for storage location dropdown
-      api.getAllStructures().then(setStructures);
-      // Fetch inventory items
-      api.getInventoryItems().then(setInventoryItems);
-    } else {
-      setHarvests([]);
-      setFacilities([]);
-      setStructures([]);
-      setInventoryItems([]);
-    }
-  }, [activeModule]);
-
-  const summary = useMemo(() => {
-    const drying = harvests.filter((h) => h.status === 'drying').length;
-    const dried = harvests.filter((h) => h.status === 'dried').length;
-    return { drying, dried };
-  }, [harvests]);
-
-  // Generate storage location options from structures with detailed locations
-  const getStorageLocationOptions = () => {
-    const options: string[] = [];
-    
-    structures.forEach((structure) => {
-      const facilityName = structure.facility?.name || 'Unknown Facility';
-      const geoName = structure.facility?.geo?.name || 'Unknown Location';
-      const baseLocation = `${structure.name} - ${facilityName} - ${geoName}`;
-      
-      // Special handling for seeds - only allow storage rooms
-      if (selectedCategory === 'Live Plants' && selectedSubcategory === 'Seeds') {
-        // Only include storage rooms for seeds
-        if (structure.usage === 'Storage') {
-          options.push(baseLocation);
-          
-          // Add racks if they exist (for organized seed storage)
-          if (structure.racks && structure.racks.length > 0) {
-            structure.racks.forEach((rack: any, rackIndex: number) => {
-              // Add the rack itself
-              options.push(`${baseLocation} - Rack ${rackIndex + 1} (${rack.widthCm}x${rack.lengthCm}cm)`);
-              // Add individual shelves for detailed tracking
-              for (let shelf = 1; shelf <= rack.shelves; shelf++) {
-                options.push(`${baseLocation} - Rack ${rackIndex + 1} - Shelf ${shelf}`);
-              }
-            });
-          }
-        }
-      } else {
-        // For all other inventory items
-        // Add the main room/structure
-        options.push(baseLocation);
-        
-        // For Live Plants (Clones), add specific detailed locations
-        if (selectedCategory === 'Live Plants') {
-          // Add tents if they exist
-          if (structure.tents && structure.tents.length > 0) {
-            structure.tents.forEach((tent: any, index: number) => {
-              options.push(`${baseLocation} - Tent ${index + 1} (${tent.widthFt}x${tent.lengthFt}ft)`);
-            });
-          }
-          
-          // Add racks if they exist (useful for clones and seedlings)
-          if (structure.racks && structure.racks.length > 0) {
-            structure.racks.forEach((rack: any, rackIndex: number) => {
-              // Add the rack itself
-              options.push(`${baseLocation} - Rack ${rackIndex + 1} (${rack.widthCm}x${rack.lengthCm}cm)`);
-              // Add individual shelves for detailed tracking
-              for (let shelf = 1; shelf <= rack.shelves; shelf++) {
-                options.push(`${baseLocation} - Rack ${rackIndex + 1} - Shelf ${shelf}`);
-              }
-            });
-          }
-        }
-      }
-    });
-    
-    return options;
-  };
-
-  // Validate individual field
-  const validateField = (name: string, value: any, field: any) => {
-    if (!field.required) return true;
-    
-    // Basic validation based on field type
-    let isValid = true;
-    if (field.type === 'select') {
-      isValid = value && value.trim() !== '';
-    } else if (field.type === 'number') {
-      isValid = value !== '' && value !== null && value !== undefined && !isNaN(Number(value)) && Number(value) >= 0;
-    } else if (field.type === 'date') {
-      isValid = value && value.trim() !== '';
-    } else if (field.type === 'file') {
-      isValid = value && value.trim() !== '';
-    } else {
-      isValid = value && value.trim() !== '';
-    }
-    
-    // Special validation for seed locations
-    if (name === 'location' && isValid && selectedCategory === 'Live Plants' && selectedSubcategory === 'Seeds') {
-      isValid = isLocationStorageRoom(value);
-    }
-    
-    return isValid;
-  };
-
-  // Update field errors in real-time
-  const updateFieldErrors = () => {
-    const allFields = getFormFields();
-    const errors: Record<string, boolean> = {};
-    
-    // Check category and subcategory
-    errors['category'] = !selectedCategory;
-    errors['subcategory'] = !selectedSubcategory;
-    
-    // Item type is not required for Clones
-    if (!(selectedCategory === 'Live Plants' && selectedSubcategory === 'Clones')) {
-      errors['itemType'] = !formData.itemType;
-    }
-    
-    // Check all form fields
-    allFields.forEach(field => {
-      const isValid = validateField(field.name, formData[field.name], field);
-      errors[field.name] = !isValid;
-    });
-    
-    setFieldErrors(errors);
-  };
-
-  // Check if the selected location is a storage room
-  const isLocationStorageRoom = (location: string) => {
-    // Find the structure that matches this location
-    const structureMatch = structures.find(structure => {
-      const facilityName = structure.facility?.name || 'Unknown Facility';
-      const geoName = structure.facility?.geo?.name || 'Unknown Location';
-      const baseLocation = `${structure.name} - ${facilityName} - ${geoName}`;
-      
-      // Check if location starts with this base location (might have rack/shelf details appended)
-      return location.startsWith(baseLocation);
-    });
-    
-    return structureMatch?.usage === 'Storage';
-  };
-
-  // Update validation whenever form data changes
-  useEffect(() => {
-    updateFieldErrors();
-    
-    // Extra validation for seeds - they must be in storage rooms
-    if (selectedCategory === 'Live Plants' && selectedSubcategory === 'Seeds' && formData.location) {
-      if (!isLocationStorageRoom(formData.location)) {
-        setFieldErrors(prev => ({ ...prev, location: true }));
-      }
-    }
-  }, [formData, selectedCategory, selectedSubcategory]);
-
-  // Handle input changes with validation
-  const handleInputChange = (fieldName: string, value: any) => {
-    setFormData({ ...formData, [fieldName]: value });
-  };
-
-  // Get form fields based on selected category/subcategory
-  const getFormFields = () => {
-    if (!selectedCategory || !selectedSubcategory) return [];
-
-    const baseFields: Array<{name: string, label: string, type: string, required?: boolean, options?: string[], step?: string}> = [
-      { name: 'name', label: 'Item Name', type: 'text', required: true },
-      { name: 'quantity', label: 'Quantity', type: 'number', required: true },
-      // Storage location - always a dropdown with available storage rooms
-      { name: 'location', label: 'Storage Location', type: 'select', options: getStorageLocationOptions(), required: true },
-    ];
-
-    // Add unit field only if not Seeds or Clones
-    if (!(selectedCategory === 'Live Plants' && (selectedSubcategory === 'Seeds' || selectedSubcategory === 'Clones'))) {
-      baseFields.splice(2, 0, { name: 'unit', label: 'Unit', type: 'select', options: ['pieces', 'grams', 'ounces', 'pounds', 'liters', 'milliliters'], required: true });
-    }
-
-    // Add supplier/source only if not Clones
-    if (!(selectedCategory === 'Live Plants' && selectedSubcategory === 'Clones')) {
-      baseFields.push(
-        { name: 'supplier', label: 'Supplier/Source', type: 'text', required: true }
-      );
-    }
-
-    // Add purchase/cutting date
-    baseFields.push(
-      selectedCategory === 'Live Plants' && selectedSubcategory === 'Clones'
-        ? { name: 'purchaseDate', label: 'Cutting Date', type: 'date', required: true }
-        : { name: 'purchaseDate', label: 'Purchase/Acquisition Date', type: 'date', required: true }
-    );
-
-    // Add expiry date and cost only if not Clones
-    if (!(selectedCategory === 'Live Plants' && selectedSubcategory === 'Clones')) {
-      baseFields.push(
-        { name: 'expiryDate', label: 'Expiry Date', type: 'date', required: true },
-        { name: 'cost', label: 'Cost ($)', type: 'number', step: '0.01', required: true }
-      );
-    }
-
-    let specificFields: typeof baseFields = [];
-
-    // Category-specific fields
-    if (selectedCategory === 'Live Plants') {
-      specificFields = [
-        { name: 'strain', label: 'Strain/Variety', type: 'text', required: true },
-        { name: 'genetics', label: 'Genetics (Indica/Sativa/Hybrid)', type: 'select', options: ['Indica', 'Sativa', 'Hybrid'], required: true },
-        { name: 'breeder', label: 'Breeder', type: 'text', required: true },
-      ];
-      
-      // Only add planted date and mother plant ID for specific subcategories
-      if (selectedSubcategory !== 'Seeds' && selectedSubcategory !== 'Clones') {
-        specificFields.push(
-          { name: 'plantedDate', label: 'Planted Date', type: 'date', required: true }
-        );
-      }
-      
-      // Add mother plant ID for Clones and other non-seed items
-      if (selectedSubcategory !== 'Seeds') {
-        specificFields.push(
-          { name: 'motherPlant', label: 'Mother Plant ID', type: 'text', required: true }
-        );
-      }
-    } else if (selectedCategory === 'Growing Supplies') {
-      specificFields = [
-        { name: 'brand', label: 'Brand', type: 'text', required: true },
-        { name: 'model', label: 'Model/Product Code', type: 'text', required: true }
-      ];
-    }
-
-    return [...specificFields, ...baseFields];
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      // Collect all form fields
-      const fields = getFormFields();
-      const specificFields: Record<string, any> = {};
-      
-      // Separate specific fields from base fields
-      const baseFieldNames = ['name', 'quantity', 'unit', 'location', 'supplier', 'purchaseDate', 'expiryDate', 'cost'];
-      fields.forEach(field => {
-        if (!baseFieldNames.includes(field.name) && formData[field.name]) {
-          specificFields[field.name] = formData[field.name];
-        }
-      });
-
-      const inventoryData = {
-        name: formData.name,
-        category: selectedCategory,
-        subcategory: selectedSubcategory,
-        itemType: formData.itemType,
-        quantity: parseInt(formData.quantity),
-        unit: formData.unit || (selectedCategory === 'Live Plants' && (selectedSubcategory === 'Seeds' || selectedSubcategory === 'Clones') ? 'pieces' : ''),
-        location: formData.location,
-        supplier: formData.supplier,
-        purchaseDate: formData.purchaseDate,
-        expiryDate: formData.expiryDate,
-        cost: formData.cost ? parseFloat(formData.cost) : undefined,
-        specificFields: Object.keys(specificFields).length > 0 ? specificFields : undefined
-      };
-
-      // Save to database
-      await api.createInventoryItem(inventoryData);
-      
-      // Refresh inventory list
-      const updatedInventoryItems = await api.getInventoryItems();
-      setInventoryItems(updatedInventoryItems);
-      
-      // Close modal
-      setShowAddModal(false);
-      setSelectedCategory('');
-      setSelectedSubcategory('');
-      setFormData({});
-      setFieldErrors({});
-    } catch (error) {
-      console.error('Error creating inventory item:', error);
-      // You could add error handling UI here
-    }
-  };
-
-  const resetModal = () => {
-    setShowAddModal(false);
-    setSelectedCategory('');
-    setSelectedSubcategory('');
-    setFormData({});
-    setFieldErrors({});
-  };
-
-  const handleDeleteInventoryItem = async (id: string, itemName: string) => {
-    // Show custom confirmation modal
-    setItemToDelete({ id, name: itemName });
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!itemToDelete) return;
-    
-    try {
-      await api.deleteInventoryItem(itemToDelete.id);
-      // Refresh inventory list
-      const updatedInventoryItems = await api.getInventoryItems();
-      setInventoryItems(updatedInventoryItems);
-      
-      // Close modal and reset state
-      setShowDeleteConfirm(false);
-      setItemToDelete(null);
-    } catch (error) {
-      console.error('Error deleting inventory item:', error);
-      // You could add error handling UI here
-      alert('Failed to delete inventory item. Please try again.');
-    }
-  };
-
-  const cancelDelete = () => {
-    setShowDeleteConfirm(false);
-    setItemToDelete(null);
-  };
-
-  if (activeModule !== 'cannabis') {
-    return (
-      <Card>
-        <p className="text-sm text-gray-700">Inventory for {activeModule} is not yet implemented in this MVP.</p>
-      </Card>
-    );
+  function addItemMock(form: Partial<InvItem>) {
+    const id = `INV-${Date.now()}`;
+    const newItem: InvItem = {
+      id,
+      sku: form.sku || `NEW-${Math.floor(Math.random()*1000)}`,
+      name: form.name || 'New Inventory Item',
+      category: (form.category as any) || 'Supplies',
+      strain: form.strain,
+      batchId: form.batchId,
+      facility: form.facility || 'Farm HQ',
+      location: form.location || 'Vault',
+      quantity: Number(form.quantity || 0),
+      uom: (form.uom as any) || 'units',
+      status: (form.status as any) || 'Available',
+      updatedAt: new Date().toISOString(),
+    };
+    setItems(prev => [newItem, ...prev]);
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2">
-          <PackageIcon className="h-6 w-6" aria-hidden /> Inventory
-        </h1>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors inline-flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" /> Add Item
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Inventory</h1>
+          <p className="text-sm text-gray-600">Realistic inventory across products, packaging, and supplies</p>
+        </div>
+        <button className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-primary text-white text-sm" onClick={() => setOpenAdd(true)}>
+          <Plus className="h-4 w-4" aria-hidden /> Add item
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Card>
-          <div className="text-sm text-gray-500">Harvest lots (drying)</div>
-          <div className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2 mt-1">
-            <Scissors className="h-5 w-5 text-amber-600" aria-hidden /> {summary.drying}
-          </div>
+          <div className="text-xs text-gray-500">Distinct items</div>
+          <div className="mt-1 text-2xl font-semibold text-gray-900">{items.length}</div>
+          <div className="mt-1 text-xs text-gray-500">{categories.length - 1} categories</div>
         </Card>
         <Card>
-          <div className="text-sm text-gray-500">Harvest lots (dried)</div>
-          <div className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2 mt-1">
-            <Scissors className="h-5 w-5 text-emerald-700" aria-hidden /> {summary.dried}
-          </div>
+          <div className="text-xs text-gray-500">Total weight (g)</div>
+          <div className="mt-1 text-2xl font-semibold text-gray-900">{Math.round(totalQty).toLocaleString()}</div>
+          <div className="mt-1 text-xs text-gray-500">Excludes unit-only items</div>
+        </Card>
+        <Card>
+          <div className="text-xs text-gray-500">Unit count</div>
+          <div className="mt-1 text-2xl font-semibold text-gray-900">{unitCount.toLocaleString()}</div>
+          <div className="mt-1 text-xs text-gray-500">Pre-rolls, packaging, supplies</div>
         </Card>
       </div>
 
+      {/* Filters */}
       <Card>
-        <h2 className="text-lg font-medium text-gray-900 mb-2">Harvest lots</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+        <div className="flex flex-wrap gap-2 items-center">
+          <input
+            placeholder="Search name, SKU, strain, or batch"
+            className="rounded-md border-gray-300 px-2 py-1 text-sm min-w-[18rem]"
+            value={filters.q}
+            onChange={(e)=>setFilters({...filters, q: e.target.value})}
+          />
+          <select className="rounded-md border-gray-300 px-2 py-1 text-sm" value={filters.category} onChange={(e)=>setFilters({...filters, category: e.target.value})}>
+            {categories.map(c => (<option key={c}>{c}</option>))}
+          </select>
+          <select className="rounded-md border-gray-300 px-2 py-1 text-sm" value={filters.status} onChange={(e)=>setFilters({...filters, status: e.target.value})}>
+            {statuses.map(s => (<option key={s}>{s}</option>))}
+          </select>
+          <div className="ml-auto text-xs text-gray-500">{filtered.length} items</div>
+        </div>
+      </Card>
+
+      <Card title="Items">
+        <div className="overflow-auto max-h-[28rem] rounded-lg border border-gray-100">
+          <table className="min-w-full w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500">
-                <th className="py-2 pr-4">Lot</th>
-                <th className="py-2 pr-4">Weight</th>
-                <th className="py-2 pr-4">Status</th>
+              <tr className="text-left text-gray-600 bg-gray-50">
+                <th className="py-2 px-3 font-semibold">SKU</th>
+                <th className="py-2 px-3 font-semibold">Name</th>
+                <th className="py-2 px-3 font-semibold">Category</th>
+                <th className="py-2 px-3 font-semibold">Strain</th>
+                <th className="py-2 px-3 font-semibold">Batch</th>
+                <th className="py-2 px-3 font-semibold">Qty</th>
+                <th className="py-2 px-3 font-semibold">UoM</th>
+                <th className="py-2 px-3 font-semibold">Status</th>
+                <th className="py-2 px-3 font-semibold">Facility</th>
+                <th className="py-2 px-3 font-semibold">Location</th>
+                <th className="py-2 px-3 font-semibold">Updated</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {harvests.slice(0, 20).map((h) => (
-                <tr key={h.id} className="text-gray-800">
-                  <td className="py-2 pr-4 font-mono text-xs">{h.id}</td>
-                  <td className="py-2 pr-4">{h.yieldGrams} g</td>
-                  <td className="py-2 pr-4 capitalize">{h.status}</td>
+              {filtered.map((it) => (
+                <tr key={it.id} className="text-gray-800">
+                  <td className="py-2 px-3 font-mono">{it.sku}</td>
+                  <td className="py-2 px-3">{it.name}</td>
+                  <td className="py-2 px-3">{it.category}</td>
+                  <td className="py-2 px-3">{it.strain || '—'}</td>
+                  <td className="py-2 px-3 font-mono">{it.batchId || '—'}</td>
+                  <td className="py-2 px-3 text-right">{it.quantity.toLocaleString()}</td>
+                  <td className="py-2 px-3">{it.uom}</td>
+                  <td className="py-2 px-3"><StatusBadge status={it.status} /></td>
+                  <td className="py-2 px-3">{it.facility}</td>
+                  <td className="py-2 px-3">{it.location}</td>
+                  <td className="py-2 px-3 whitespace-nowrap text-xs text-gray-600">{new Date(it.updatedAt).toLocaleDateString()}</td>
                 </tr>
               ))}
+              {filtered.length===0 && (
+                <tr><td colSpan={11} className="py-6 text-center text-gray-500">No items match current filters.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
       </Card>
 
-      {/* Inventory Items Section */}
-      <Card>
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Inventory Items</h2>
-        {inventoryItems.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No inventory items added yet. Click "Add Item" to get started.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-500 border-b border-gray-200">
-                  <th className="py-3 pr-4 font-medium">Name</th>
-                  <th className="py-3 pr-4 font-medium">Category</th>
-                  <th className="py-3 pr-4 font-medium">Subcategory</th>
-                  <th className="py-3 pr-4 font-medium">Type</th>
-                  <th className="py-3 pr-4 font-medium">Quantity</th>
-                  <th className="py-3 pr-4 font-medium">Location</th>
-                  <th className="py-3 pr-4 font-medium">Added</th>
-                  <th className="py-3 pr-4 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {inventoryItems.map((item) => (
-                  <tr key={item.id} className="text-gray-800 hover:bg-gray-50">
-                    <td className="py-3 pr-4 font-medium">{item.name}</td>
-                    <td className="py-3 pr-4">{item.category}</td>
-                    <td className="py-3 pr-4">{item.subcategory}</td>
-                    <td className="py-3 pr-4">{item.itemType || '-'}</td>
-                    <td className="py-3 pr-4">{item.quantity} {item.unit}</td>
-                    <td className="py-3 pr-4">{item.location}</td>
-                    <td className="py-3 pr-4">{new Date(item.createdAt).toLocaleDateString()}</td>
-                    <td className="py-3 pr-4">
-                      <button
-                        onClick={() => handleDeleteInventoryItem(item.id, item.name)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-
-      {/* Add Item Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Add Inventory Item</h2>
-              <button
-                onClick={resetModal}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Category Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category *
-                </label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => {
-                    setSelectedCategory(e.target.value);
-                    setSelectedSubcategory('');
-                  }}
-                  required
-                  className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent ${
-                    fieldErrors['category'] ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select Category</option>
-                  {Object.keys(inventoryCategories).map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Subcategory Selection */}
-              {selectedCategory && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Subcategory *
-                  </label>
-                  <select
-                    value={selectedSubcategory}
-                    onChange={(e) => setSelectedSubcategory(e.target.value)}
-                    required
-                    className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent ${
-                      fieldErrors['subcategory'] ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                    }`}
-                  >
-                    <option value="">Select Subcategory</option>
-                    {inventoryCategories[selectedCategory as keyof typeof inventoryCategories].map(subcategory => (
-                      <option key={subcategory} value={subcategory}>{subcategory}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Item Type Selection - Not needed for Clones */}
-              {selectedCategory && selectedSubcategory && !(selectedCategory === 'Live Plants' && selectedSubcategory === 'Clones') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Item Type *
-                  </label>
-                  <select
-                    value={formData.itemType || ''}
-                    onChange={(e) => handleInputChange('itemType', e.target.value)}
-                    required
-                    className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent ${
-                      fieldErrors['itemType'] ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                    }`}
-                  >
-                    <option value="">Select Item Type</option>
-                    {(() => {
-                      try {
-                        const categoryData = itemTypes[selectedCategory as keyof typeof itemTypes];
-                        const items = categoryData?.[selectedSubcategory as keyof typeof categoryData] as string[] | undefined;
-                        return items?.map((item: string) => (
-                          <option key={item} value={item}>{item}</option>
-                        )) || [];
-                      } catch {
-                        return [];
-                      }
-                    })()}
-                  </select>
-                </div>
-              )}
-
-              {/* Dynamic Form Fields */}
-              {selectedCategory && selectedSubcategory && (
-                (selectedCategory === 'Live Plants' && selectedSubcategory === 'Clones') || 
-                formData.itemType
-              ) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {getFormFields().map(field => (
-                    <div key={field.name} className={field.type === 'textarea' ? 'md:col-span-2' : ''}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {field.label} {field.required && '*'}
-                      </label>
-                      {field.type === 'select' ? (
-                        <div>
-                          <select
-                            value={formData[field.name] || ''}
-                            onChange={(e) => handleInputChange(field.name, e.target.value)}
-                            required={field.required}
-                            className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent ${
-                              fieldErrors[field.name] ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                            }`}
-                          >
-                            <option value="">Select {field.label}</option>
-                            {field.options?.map(option => (
-                              <option key={option} value={option}>{option}</option>
-                            ))}
-                          </select>
-                          {field.name === 'location' && selectedCategory === 'Live Plants' && selectedSubcategory === 'Seeds' && field.options?.length === 0 && (
-                            <div className="mt-1 text-amber-600 text-xs flex items-center">
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              Seeds must be stored in storage rooms only. No storage rooms are available.
-                            </div>
-                          )}
-                        </div>
-                      ) : field.type === 'textarea' ? (
-                        <textarea
-                          value={formData[field.name] || ''}
-                          onChange={(e) => handleInputChange(field.name, e.target.value)}
-                          required={field.required}
-                          rows={3}
-                          className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent ${
-                            fieldErrors[field.name] ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                          }`}
-                        />
-                      ) : (
-                        <input
-                          type={field.type}
-                          value={formData[field.name] || ''}
-                          onChange={(e) => handleInputChange(field.name, e.target.value)}
-                          required={field.required}
-                          step={field.step}
-                          className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-transparent ${
-                            fieldErrors[field.name] 
-                              ? 'border-red-500 bg-red-50' 
-                              : 'border-gray-300'
-                          }`}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Submit Buttons */}
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={resetModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={Object.values(fieldErrors).some(error => error)}
-                  className="flex-1 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  Add Item
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {openAdd && (
+        <Drawer title="Add Inventory Item" onClose={() => setOpenAdd(false)} onSubmit={() => setOpenAdd(false)}>
+          <AddItemForm onSubmit={(f)=>{ addItemMock(f); setOpenAdd(false); }} batches={batches} />
+        </Drawer>
       )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && itemToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Delete Inventory Item</h3>
-                <p className="text-sm text-gray-500">This action cannot be undone</p>
-              </div>
-            </div>
-            
-            <div className="mb-6">
-              <p className="text-gray-700">
-                Are you sure you want to delete{' '}
-                <span className="font-semibold text-gray-900">"{itemToDelete.name}"</span>{' '}
-                from the inventory?
-              </p>
-            </div>
-            
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={cancelDelete}
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors inline-flex items-center gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete Item
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
+  );
+}
+
+function StatusBadge({ status }: { status: InvItem['status'] }) {
+  const cls = status === 'Available' ? 'bg-emerald-100 text-emerald-700' : status === 'Quarantined' ? 'bg-amber-100 text-amber-700' : status === 'Locked' ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700';
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs ${cls}`}>{status}</span>;
+}
+
+function Drawer({ title, children, onClose, onSubmit }: { title: string; children: React.ReactNode; onClose: () => void; onSubmit?: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/20" onClick={onClose} aria-hidden />
+      <div className="absolute right-0 top-0 h-full w-full sm:w-[30rem] bg-white shadow-xl border-l border-gray-200 overflow-auto">
+        <div className="p-4 flex items-start justify-between">
+          <div>
+            <div className="text-sm text-gray-500">Inventory</div>
+            <div className="text-lg font-semibold text-gray-900">{title}</div>
+          </div>
+          <button className="text-gray-600 hover:text-gray-900" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="px-4 pb-24">
+          <div className="rounded-lg border border-gray-200 p-4 mt-2">
+            {children}
+          </div>
+        </div>
+        <div className="absolute bottom-0 inset-x-0 p-3 border-t border-gray-200 bg-white flex items-center justify-end gap-2">
+          <button className="px-3 py-2 rounded-md border text-sm hover:bg-gray-50" onClick={onClose}>Cancel</button>
+          <button className="px-3 py-2 rounded-md bg-primary text-white text-sm font-medium hover:opacity-95" onClick={onSubmit}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddItemForm({ onSubmit, batches }: { onSubmit: (form: Partial<InvItem>) => void; batches: string[] }) {
+  const [form, setForm] = useState<Partial<InvItem>>({ category: 'Flower', uom: 'g', status: 'Available' });
+  const categories: InvItem['category'][] = ['Flower', 'Trim', 'Pre-roll', 'Oil', 'Edible', 'Packaging', 'Nutrients', 'Supplies'];
+  const facilities = ['Farm HQ', 'Greenhouse 1', 'Greenhouse 2', 'Indoor Room 1', 'Indoor Room 2'];
+  const locations = ['Vault', 'Dry Room 1', 'Cure Room A', 'Packaging Line', 'Storage B'];
+
+  return (
+    <form
+      className="grid grid-cols-2 gap-3"
+      onSubmit={(e)=>{ e.preventDefault(); onSubmit(form); }}
+    >
+      <label className="text-sm col-span-2"><span className="block text-gray-700 mb-1">SKU</span><input className="w-full rounded-md border-gray-300" value={form.sku||''} onChange={(e)=>setForm({...form, sku: e.target.value})} placeholder="FLW-1203" /></label>
+      <label className="text-sm col-span-2"><span className="block text-gray-700 mb-1">Name</span><input className="w-full rounded-md border-gray-300" value={form.name||''} onChange={(e)=>setForm({...form, name: e.target.value})} placeholder="Blue Dream Flower" /></label>
+      <label className="text-sm"><span className="block text-gray-700 mb-1">Category</span>
+        <select className="w-full rounded-md border-gray-300" value={form.category as any} onChange={(e)=>setForm({...form, category: e.target.value as any})}>{categories.map(c=>(<option key={c}>{c}</option>))}</select>
+      </label>
+      <label className="text-sm"><span className="block text-gray-700 mb-1">UoM</span>
+        <select className="w-full rounded-md border-gray-300" value={form.uom as any} onChange={(e)=>setForm({...form, uom: e.target.value as any})}>
+          <option>g</option><option>kg</option><option>units</option><option>L</option>
+        </select>
+      </label>
+      <label className="text-sm"><span className="block text-gray-700 mb-1">Quantity</span><input type="number" className="w-full rounded-md border-gray-300" value={form.quantity as any || ''} onChange={(e)=>setForm({...form, quantity: Number(e.target.value)})} placeholder="1000" /></label>
+      <label className="text-sm"><span className="block text-gray-700 mb-1">Status</span>
+        <select className="w-full rounded-md border-gray-300" value={form.status as any} onChange={(e)=>setForm({...form, status: e.target.value as any})}>
+          <option>Available</option><option>Quarantined</option><option>Locked</option><option>Reserved</option>
+        </select>
+      </label>
+      <label className="text-sm"><span className="block text-gray-700 mb-1">Strain</span><input className="w-full rounded-md border-gray-300" value={form.strain||''} onChange={(e)=>setForm({...form, strain: e.target.value})} placeholder="Gelato" /></label>
+      <label className="text-sm"><span className="block text-gray-700 mb-1">Batch</span>
+        <select className="w-full rounded-md border-gray-300" value={form.batchId||''} onChange={(e)=>setForm({...form, batchId: e.target.value})}>
+          <option value="">—</option>
+          {batches.map(b => (<option key={b} className="font-mono">{b}</option>))}
+        </select>
+      </label>
+      <label className="text-sm"><span className="block text-gray-700 mb-1">Facility</span>
+        <select className="w-full rounded-md border-gray-300" value={form.facility||''} onChange={(e)=>setForm({...form, facility: e.target.value})}>{facilities.map(f=>(<option key={f}>{f}</option>))}</select>
+      </label>
+      <label className="text-sm"><span className="block text-gray-700 mb-1">Location</span>
+        <select className="w-full rounded-md border-gray-300" value={form.location||''} onChange={(e)=>setForm({...form, location: e.target.value})}>{locations.map(l=>(<option key={l}>{l}</option>))}</select>
+      </label>
+      <div className="col-span-2 flex items-center justify-end gap-2">
+        <button type="button" className="px-3 py-2 rounded-md border text-sm" onClick={()=>onSubmit(form)}>Add item</button>
+      </div>
+    </form>
   );
 }

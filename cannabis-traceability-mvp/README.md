@@ -20,7 +20,7 @@ Services and ports:
 - Regulator Frontend: http://localhost:9001 (HMR 24679)
 - Auditor Frontend: http://localhost:9002 (HMR 24680)
 - Farmer Frontend: http://localhost:9003 (container port 9000; HMR 24682)
-- Shop Frontend: http://localhost:9004 (HMR 24680)
+ - Retail Frontend: http://localhost:9004 (HMR 24680)
 - Laboratory Frontend: http://localhost:9005 (HMR 24681)
 
 Notes:
@@ -37,7 +37,7 @@ cd welcome-frontend && npm install && npm run dev    # :9000
 cd regulator-frontend && npm install && npm run dev  # :9001
 cd auditor-frontend && npm install && npm run dev    # :9002
 cd farmer-frontend && npm install && npm run dev     # :9003
-cd shop-frontend && npm install && npm run dev       # :9004
+cd retail-frontend && npm install && npm run dev     # :9004
 cd laboratory-frontend && npm install && npm run dev # :9005
 ```
 
@@ -60,6 +60,21 @@ cd laboratory-frontend && npm install && npm run dev # :9005
 	- Removed temporary API token section.
 	- Cleaned “(mock)” from subtitles.
 
+## 🌾 What’s new (Farmer Frontend)
+
+- Production
+	- Quick actions use a right-side drawer for a focused workflow.
+	- Added realistic actions: Germination, Transplant, Flip to flower, Harvest, Start drying, End drying, Lab submission, Packaging, Transfer/Manifest.
+	- Forms use data-driven selects populated from current plants/harvests where possible (strain, batch, rooms), plus sensible mocked lists (labs, facilities, drivers, label templates).
+	- Stage badges and KPIs for plants, harvests, and active batches.
+- Inventory (new)
+	- New page and navbar item next to Production with a realistic, filterable inventory view.
+	- Covers Flower, Trim, Pre-rolls, Oil, Packaging, Nutrients, Supplies with large‑farm scale mock data.
+	- KPIs for distinct items, total weight, and unit count.
+	- Drawer-based “Add item” action with a structured form (SKU, Name, Category, UoM, Quantity, Status, Strain/Batch, Facility/Location).
+ - Misc
+	- Debug data route removed from the farmer app in the MVP build path to avoid dev-only errors.
+
 ## 🔐 Demo Login
 
 - Username: Regulator
@@ -68,7 +83,7 @@ cd laboratory-frontend && npm install && npm run dev # :9005
 
 ## 🗺️ Google Maps Integration (optional)
 
-Both frontends support Maps-based location picking.
+Frontends support Maps-based location picking (where applicable).
 
 1) Create `.env` in each frontend:
 ```env
@@ -84,7 +99,7 @@ VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
 - http://localhost:*/*
 - http://127.0.0.1:*/*
 
-## � Demo Credentials (all role apps)
+## 🔑 Demo Credentials (all role apps)
 
 - Username: Regulator | Auditor | Farmer | Shop | Laboratory
 - Password: 1234

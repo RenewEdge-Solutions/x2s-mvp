@@ -23,7 +23,7 @@ export default function Login() {
 
   const onVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    await verify2FA(code);
+  await verify2FA(code);
     navigate('/dashboard');
   };
 
@@ -34,10 +34,10 @@ export default function Login() {
         <div className="relative hidden md:block bg-white rounded-2xl border border-gray-200 shadow-sm p-10 overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(#22c55e_1px,transparent_1px)] [background-size:16px_16px] opacity-10" />
           <h2 className="text-3xl font-bold text-gray-900">Farmer Portal</h2>
-          <p className="mt-2 text-gray-600">Secure access to audits, integrity, and reports.</p>
+          <p className="mt-2 text-gray-600">Secure access to your seed-to-sale workflow.</p>
           <ul className="mt-6 space-y-2 text-sm text-gray-700">
             <li>• Role: Farmer</li>
-            <li>• Access: Read-only, Integrity checks, Reports</li>
+            <li>• Access: Production, Lifecycle, Reports</li>
             <li>• Compliance-grade session with 2FA</li>
           </ul>
 
@@ -65,7 +65,7 @@ export default function Login() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
           <div className="mb-6">
             <h1 className="text-2xl font-semibold text-gray-900">Sign in</h1>
-            <p className="mt-1 text-sm text-gray-600">Enter your credentials to access the Farmer workspace.</p>
+            <p className="mt-1 text-sm text-gray-600">Enter your credentials to access your farmer workspace.</p>
           </div>
 
           {!is2FARequired ? (
@@ -95,11 +95,11 @@ export default function Login() {
             <form onSubmit={onVerify} className="space-y-4">
               <div>
                 <label className="block text-sm text-gray-700">2FA Code</label>
-                <div className="flex gap-2">
+        <div className="flex gap-2">
                   <input
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    placeholder={nowCode}
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0,6))}
+          placeholder={nowCode}
                     className="mt-1 w-full rounded-lg border-gray-300 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                 </div>
