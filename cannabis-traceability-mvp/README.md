@@ -18,6 +18,7 @@ docker compose up --build
 Services and ports:
 - Regulator Frontend: http://localhost:2000 (container 5000; HMR 24679)
 - Auditor Frontend: http://localhost:4000
+- Shop Frontend: http://localhost:9000 (HMR 24680)
 
 Notes:
 - macOS can reserve :5000 for AirPlay. Regulator app maps to :2000 to avoid conflicts.
