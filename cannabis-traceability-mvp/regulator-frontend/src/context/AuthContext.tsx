@@ -1,6 +1,6 @@
 import React from 'react';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { api } from '../lib/api';
+import { getDemoCode } from '../lib/totp';
 
 type Role = 'Regulator' | 'Auditor' | 'Grower' | 'Shop' | 'Lab' | 'Operator';
 
@@ -35,15 +35,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
   const [is2FARequired, set2FA] = useState(false);
   const [pendingUser, setPendingUser] = useState<User>(null);
+  const DEFAULT_ROLE: Role = 'Regulator';
 
   const login = async (username: string, password: string) => {
-    const res = await api.login(username, password);
-    set2FA(res.require2fa);
-  setPendingUser(res.user);
+    if (!username || password !== '1234') throw new Error('Invalid credentials');
+    setPendingUser({
+      id: 'demo-user',
+      username,
+      role: DEFAULT_ROLE,
+      firstName: DEFAULT_ROLE,
+      lastName: 'User',
+      phone: '+1 (555) 010-0001',
+      email: `${username.toLowerCase()}@demo.local`,
+    });
+    set2FA(true);
   };
 
   const verify2FA = async (code: string) => {
-    await api.verify2FA(code);
+    const current = getDemoCode('REGULATOR-DEMO');
+    if (code !== current) throw new Error('Invalid 2FA code');
     setUser(pendingUser);
     setPendingUser(null);
     set2FA(false);
