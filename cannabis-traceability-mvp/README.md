@@ -21,6 +21,7 @@ Services and ports:
 - Farmer Frontend: http://localhost:9003 (run locally; docker service not configured)
 - Shop Frontend: http://localhost:9004 (HMR 24680)
 - Laboratory Frontend: http://localhost:9005 (HMR 24681)
+- Welcome Frontend: http://localhost:9000 (Landing page)
 
 Notes:
 - macOS can reserve :5000 for AirPlay. Regulator app maps to :2000 to avoid conflicts.
