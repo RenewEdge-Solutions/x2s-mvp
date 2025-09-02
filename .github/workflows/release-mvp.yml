@@ -71,6 +71,18 @@ jobs:
             cannabis-traceability-mvp/cannabis-mvp-images.tar
             cannabis-mvp-bundle.zip
 
+      - name: Create GitHub Release and upload assets (on tag push)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/release-')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Cannabis MVP ${{ github.ref_name }}
+          files: |
+            cannabis-traceability-mvp/cannabis-mvp-images.tar
+            cannabis-mvp-bundle.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Attach assets to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
