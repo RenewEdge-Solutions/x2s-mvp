@@ -57,10 +57,6 @@ export default function Dashboard() {
           <h1 className="text-2xl font-semibold text-gray-900">Regulator console</h1>
           <p className="mt-1 text-sm text-gray-600">Seed‑to‑sale oversight, compliance monitoring, and public safety</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge label="Regulator view" />
-          <Badge label="MVP demo" tone="neutral" />
-        </div>
       </div>
 
       {/* KPIs */}
