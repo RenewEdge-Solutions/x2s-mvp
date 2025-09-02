@@ -16,25 +16,28 @@ docker compose up --build
 ```
 
 Services and ports:
+- Welcome Frontend: http://localhost:9000 (Landing)
 - Regulator Frontend: http://localhost:9001 (HMR 24679)
 - Auditor Frontend: http://localhost:9002
-- Farmer Frontend: http://localhost:9003 (run locally; docker service not configured)
+- Farmer Frontend: http://localhost:9003 (run locally; no docker service yet)
 - Shop Frontend: http://localhost:9004 (HMR 24680)
 - Laboratory Frontend: http://localhost:9005 (HMR 24681)
-- Welcome Frontend: http://localhost:9000 (Landing page)
 
 Notes:
-- macOS can reserve :5000 for AirPlay. Regulator app maps to :2000 to avoid conflicts.
-- If you run another Vite app, ensure HMR ports don’t clash (regulator uses 24679).
+- Ensure host ports 9000–9005 are free.
+- HMR ports used: 24678 (welcome), 24679 (regulator), 24680 (shop), 24681 (lab).
 
 ## 🧪 Running Locally (without Docker)
 
-Backend has been removed from this setup.
+Backend and database have been removed from this setup.
 
 Frontends (in separate terminals):
 ```bash
-cd regulator-frontend && npm install && npm run dev
-cd auditor-frontend && npm install && npm run dev
+cd welcome-frontend && npm install && npm run dev    # :9000
+cd regulator-frontend && npm install && npm run dev  # :9001
+cd auditor-frontend && npm install && npm run dev    # :9002
+cd shop-frontend && npm install && npm run dev       # :9004
+cd laboratory-frontend && npm install && npm run dev # :9005
 ```
 
 ## 🗺️ Google Maps Integration (optional)

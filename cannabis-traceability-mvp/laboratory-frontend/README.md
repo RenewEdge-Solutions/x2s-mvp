@@ -1,6 +1,13 @@
-# 🎨 Frontend Setup
+# Laboratory Frontend
 
-This directory contains the React frontend for the Cannabis Traceability MVP.
+Vite + React app for the Laboratory role.
+
+## Run
+
+- Docker: part of the root docker-compose at http://localhost:9005 (HMR 24681)
+- Local: `npm install && npm run dev` (listens on :9005)
+
+Back to landing: http://localhost:9000
 
 ## 🗺️ Google Maps Integration
 
@@ -27,8 +34,8 @@ The Add Location wizard uses Google Maps for address verification and map pickin
 
 4. **Set Referrer Restrictions**
    Add these to your API key restrictions:
-   - `http://localhost:5173/*`
-   - `http://127.0.0.1:5173/*`
+   - `http://localhost:9005/*`
+   - `http://127.0.0.1:9005/*`
 
 ### Troubleshooting
 
