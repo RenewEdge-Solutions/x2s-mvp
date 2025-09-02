@@ -246,7 +246,8 @@ Approach options:
 
 		Option A — Use the prebuilt bundle (recommended)
 
-		1) Download cannabis-mvp-bundle.zip from the latest Release
+		1) Download cannabis-mvp-bundle.zip from the latest Release:
+		   https://github.com/RenewEdge-Solutions/x2s-mvp/releases/latest
 		2) In Docker Desktop:
 			- Images > Load > pick cannabis-mvp-images.tar from the zip
 			- Containers > Create from compose > pick compose.yml
