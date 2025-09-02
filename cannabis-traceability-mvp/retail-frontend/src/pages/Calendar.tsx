@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import Card from '../components/Card';
 import { useModule } from '../context/ModuleContext';
 import { Calendar as CalendarIcon, Plus, X, RefreshCw, Edit, Trash2, ChevronDown, Loader2 } from 'lucide-react';
-import { computeEventsForCannabis, eventColor } from '../lib/calendar';
+import { eventColor } from '../lib/calendar';
 import { mockOperators } from '../lib/mockOperators';
 import { api } from '../lib/api';
 
@@ -35,7 +35,7 @@ export default function Calendar() {
     operator: ''
   });
 
-  // Load minimal data for event computation plus regulator events
+  // Retail calendar: only store-specific events
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -46,26 +46,18 @@ export default function Calendar() {
         setOperators([]);
         return;
       }
-      const [pl, hv, ev] = await Promise.all([
+      const [pl, hv] = await Promise.all([
         api.getPlants(),
         api.getHarvests(),
-        api.getEvents(),
       ]);
       if (cancelled) return;
       setPlants(pl);
       setHarvests(hv);
-      // Map API events to customEvents format for clickable details
-      setCustomEvents(
-        ev.map((e: any) => ({
-          id: e.id,
-          title: e.title,
-          date: new Date(e.startDate),
-          label: e.title,
-          isCustom: true,
-          description: e.location ? `Location: ${e.location}` : undefined,
-          operator: e.metadata?.operator || '',
-        }))
-      );
+      // Retail: seed with a few local items only
+      setCustomEvents([
+        { id: 9001, title: 'Delivery: Distributor SLU', date: new Date(), label: 'Delivery', isCustom: true, description: 'Incoming manifest', operator: 'Island Wellness Retail' },
+        { id: 9002, title: 'Promo: Seniors Day', date: new Date(Date.now() + 86400000 * 2), label: 'Promotion', isCustom: true, description: '10% off for seniors', operator: 'Island Wellness Retail' },
+      ] as any[]);
       // Use shared mock operators list for consistency
       setOperators(mockOperators);
     }
@@ -107,15 +99,12 @@ export default function Calendar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showTimePicker]);
 
-  // Combine system-computed cultivation events with regulator scheduled items
+  // Retail: only use custom store events
   const events = useMemo(() => {
-    // Exclude farmer-facing cultivation events from regulator calendar
-    const computed = computeEventsForCannabis(plants, harvests).filter((e: any) => !['harvest', 'transplant', 'drying-check'].includes(String(e?.type)));
     return [
-      ...computed,
       ...customEvents,
     ] as any[];
-  }, [cursor, plants, harvests, customEvents]);
+  }, [cursor, customEvents]);
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -300,7 +289,7 @@ export default function Calendar() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900 inline-flex items-center gap-2">
-          <CalendarIcon className="h-6 w-6" aria-hidden /> Calendar
+          <CalendarIcon className="h-6 w-6 text-emerald-600" aria-hidden /> Calendar
         </h1>
     <div className="flex items-center gap-3">
           <div className="relative">
@@ -329,12 +318,10 @@ export default function Calendar() {
             {addOpen && (
               <div className="absolute right-0 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-50">
                 {[
-                  { label: 'Inspection', hint: 'Facility/site inspection' },
-                  { label: 'Compliance audit', hint: 'Process/records audit' },
-                  { label: 'Sampling', hint: 'Field or product sampling' },
-                  { label: 'COA due', hint: 'Certificate of analysis deadline' },
-                  { label: 'Follow-up CAPA', hint: 'Corrective action review' },
-                  { label: 'Enforcement action', hint: 'Notice, sanction, or seizure' },
+                  { label: 'Delivery', hint: 'Incoming shipment/manifests' },
+                  { label: 'Promotion', hint: 'Sales/promo event' },
+                  { label: 'Inventory count', hint: 'Cycle count or full audit' },
+                  { label: 'Staff shift', hint: 'Shift start/end' },
                 ].map((opt) => (
                   <button
                     key={opt.label}

@@ -8,16 +8,14 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ModuleProvider } from './context/ModuleContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import LifecycleExplorer from './pages/LifecycleExplorer';
 import Calendar from './pages/Calendar';
-// Removed: Inventory, Sites, Plants
-import BlockchainView from './pages/BlockchainView';
+// Removed: Inventory, Sites, Plants, Lifecycle, Integrity, Licensing, Operators
 import Profile from './pages/Profile';
 import Reports from './pages/Reports';
-import Licensing from './pages/Licensing';
-import Facilities from './pages/Facilities';
 import ErrorBoundary from './components/ErrorBoundary';
 import { enableDevTools, setupErrorHandling } from './lib/devtools';
+import POS from './pages/POS';
+import Inventory from './pages/Inventory';
 
 // Enable development tools
 enableDevTools();
@@ -45,16 +43,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                       <Routes>
                         <Route path="/" element={<Dashboard />} />
                         <Route path="/dashboard" element={<Dashboard />} />
-                        <Route path="/lifecycle" element={<LifecycleExplorer />} />
                         <Route path="/calendar" element={<Calendar />} />
-                        <Route path="/licensing" element={<Licensing />} />
+                        <Route path="/pos" element={<POS />} />
                         <Route path="/production" element={<Navigate to="/dashboard" replace />} />
-                        <Route path="/facilities" element={<Facilities />} />
+                        <Route path="/facilities" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/sites" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/plants" element={<Navigate to="/dashboard" replace />} />
-                        <Route path="/inventory" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/inventory" element={<Inventory />} />
                         <Route path="/reports" element={<Reports />} />
-                        <Route path="/integrity" element={<BlockchainView />} />
                         <Route path="/debug/data" element={<DataDump />} />
                         <Route path="/profile" element={<Profile />} />
                       </Routes>

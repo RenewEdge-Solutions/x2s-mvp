@@ -14,7 +14,7 @@ export default function Profile() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Profile</h1>
-          <p className="text-sm text-gray-600">Account, security, and notifications</p>
+          <p className="text-sm text-gray-600">Retail account, security, and notifications</p>
         </div>
       </div>
 
