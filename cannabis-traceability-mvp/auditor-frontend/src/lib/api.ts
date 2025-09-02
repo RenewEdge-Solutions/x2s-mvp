@@ -1,11 +1,36 @@
-// Base URL strategy:
-// - In dev with VITE_USE_API_PROXY=true, route requests through Vite proxy at '/api' to avoid CORS.
-// - Otherwise prefer VITE_API_URL; fallback to http://localhost:3001. If that fails, try the alternate port (3002/3001).
-// Always proxy API calls through Vite dev server at '/api' to avoid CORS
+// Base URL strategy with mock-first behavior for MVP
 let API_BASE = '/api';
 const altBaseFor = (base: string) => base.includes('3002') ? base.replace('3002', '3001') : base.replace('3001', '3002');
+const USE_MOCKS = (import.meta as any)?.env?.VITE_USE_MOCKS !== 'false';
+
+const jsonResponse = (data: any, init: ResponseInit = { status: 200 }) =>
+  new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' }, ...init });
+
+async function readJson(init?: RequestInit) {
+  try { if (typeof init?.body === 'string') return JSON.parse(init.body); } catch {}
+  return undefined;
+}
+
+async function handleMock(path: string, init?: RequestInit): Promise<Response | null> {
+  if (!USE_MOCKS) return null;
+  const method = (init?.method || 'GET').toUpperCase();
+  if (path === '/auth/login' && method === 'POST') return jsonResponse({ token: 'demo', user: { role: 'auditor' } });
+  if (path === '/auth/verify-2fa' && method === 'POST') return jsonResponse({ ok: true });
+  if (path === '/plants' && method === 'GET') return jsonResponse([]);
+  if (path === '/harvests' && method === 'GET') return jsonResponse([]);
+  if (path === '/locations/occupancy/alerts' && method === 'GET') return jsonResponse({ emptyStructures: [], lowUtilizationStructures: [], overCapacityStructures: [] });
+  if (path === '/events' && method === 'GET') return jsonResponse([]);
+  return null;
+}
 
 async function fetchJson(path: string, init?: RequestInit) {
+  if (USE_MOCKS) {
+    const mock = await handleMock(path, init);
+    if (mock) return mock;
+    const method = (init?.method || 'GET').toUpperCase();
+    const empty = method === 'GET' ? [] : { ok: true };
+    return jsonResponse(empty);
+  }
   const tryOnce = async (base: string) => {
     const res = await fetch(`${base}${path}`, init);
     // If we get a 500 error, throw an error to trigger fallbacks

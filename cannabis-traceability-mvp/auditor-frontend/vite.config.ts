@@ -3,8 +3,6 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  // Backend should always be on port 3001 as per README
-  const target = process.env.VITE_API_URL || env.VITE_API_URL || 'http://localhost:3001';
   return {
     plugins: [
       react({
@@ -35,14 +33,7 @@ export default defineConfig(({ mode }) => {
         host: 'localhost',
         protocol: 'ws'
       },
-      proxy: {
-        '/api': {
-          target,
-          changeOrigin: true,
-          secure: false,
-          // Don't rewrite the path since backend now has global /api prefix
-        }
-      }
+  proxy: {}
     },
     build: {
       sourcemap: mode === 'development',

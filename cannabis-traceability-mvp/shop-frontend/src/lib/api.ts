@@ -1,11 +1,29 @@
-// Base URL strategy:
-// - In dev with VITE_USE_API_PROXY=true, route requests through Vite proxy at '/api' to avoid CORS.
-// - Otherwise prefer VITE_API_URL; fallback to http://localhost:3001. If that fails, try the alternate port (3002/3001).
-// Always proxy API calls through Vite dev server at '/api' to avoid CORS
+// Base URL with mock-first behavior for MVP
 let API_BASE = '/api';
 const altBaseFor = (base: string) => base.includes('3002') ? base.replace('3002', '3001') : base.replace('3001', '3002');
+const USE_MOCKS = (import.meta as any)?.env?.VITE_USE_MOCKS !== 'false';
+
+const jsonResponse = (data: any, init: ResponseInit = { status: 200 }) =>
+  new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' }, ...init });
+
+async function handleMock(path: string, init?: RequestInit): Promise<Response | null> {
+  if (!USE_MOCKS) return null;
+  const method = (init?.method || 'GET').toUpperCase();
+  if (path === '/auth/login' && method === 'POST') return jsonResponse({ token: 'demo', user: { role: 'retail' } });
+  if (path === '/auth/verify-2fa' && method === 'POST') return jsonResponse({ ok: true });
+  if (path === '/products' && method === 'GET') return jsonResponse([{ id: 'prod-1', name: 'Pre-roll', price: 12.5 }]);
+  if (path === '/sales' && method === 'POST') return jsonResponse({ id: 'sale-1', ok: true }, { status: 201 });
+  return null;
+}
 
 async function fetchJson(path: string, init?: RequestInit) {
+  if (USE_MOCKS) {
+    const mock = await handleMock(path, init);
+    if (mock) return mock;
+    const method = (init?.method || 'GET').toUpperCase();
+    const empty = method === 'GET' ? [] : { ok: true };
+    return jsonResponse(empty);
+  }
   const tryOnce = async (base: string) => {
     const res = await fetch(`${base}${path}`, init);
     // If we get a 500 error, throw an error to trigger fallbacks

@@ -1,11 +1,150 @@
 // Base URL strategy:
-// - In dev with VITE_USE_API_PROXY=true, route requests through Vite proxy at '/api' to avoid CORS.
-// - Otherwise prefer VITE_API_URL; fallback to http://localhost:3001. If that fails, try the alternate port (3002/3001).
-// Always proxy API calls through Vite dev server at '/api' to avoid CORS
+// - Dev: proxy via '/api' (Vite dev server). This repo is frontend-only, so we also include a mock fallback.
+// - If a real API is provided, set VITE_API_URL and VITE_USE_MOCKS=false to bypass mocks.
 let API_BASE = '/api';
 const altBaseFor = (base: string) => base.includes('3002') ? base.replace('3002', '3001') : base.replace('3001', '3002');
 
+// In-browser mock API fallback (enabled by default for this frontend-only MVP)
+const USE_MOCKS = (import.meta as any)?.env?.VITE_USE_MOCKS !== 'false';
+
+type Plant = { id: string; strain: string; location: string; stage: string; createdAt: string };
+type Harvest = { id: string; plantId: string; yieldGrams: number; status: 'drying' | 'dried'; date: string };
+
+let mockPlants: Plant[] = [
+  { id: 'p-1001', strain: 'Blue Dream', location: 'Geo A / Farm HQ / Room 1', stage: 'Vegetative', createdAt: new Date().toISOString() },
+  { id: 'p-1002', strain: 'OG Kush', location: 'Geo A / Farm HQ / Room 2', stage: 'Flowering', createdAt: new Date().toISOString() },
+  { id: 'p-1003', strain: 'Pineapple Express', location: 'Geo B / Greenhouse 3', stage: 'Vegetative', createdAt: new Date().toISOString() },
+];
+
+let mockHarvests: Harvest[] = [
+  { id: 'h-5001', plantId: 'p-1002', yieldGrams: 420, status: 'drying', date: new Date().toISOString() },
+];
+
+let mockAlerts = {
+  emptyStructures: [
+    { id: 'st-201', name: 'Room 3', facility: 'Farm HQ', capacity: 20, occupied: 0 },
+  ],
+  lowUtilizationStructures: [
+    { id: 'st-101', name: 'Greenhouse 1', facility: 'Farm HQ', capacity: 100, occupied: 25 },
+  ],
+  overCapacityStructures: [],
+};
+
+// Tiny helper to make a JSON Response
+const jsonResponse = (data: any, init: ResponseInit = { status: 200 }) =>
+  new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' }, ...init });
+
+// Parse JSON body for mock POST/PUT handlers
+async function readJson(init?: RequestInit) {
+  try {
+    if (!init?.body) return undefined;
+    if (typeof init.body === 'string') return JSON.parse(init.body);
+    // When using fetch with a ReadableStream, it's uncommon here; skip for simplicity
+  } catch {
+    /* noop */
+  }
+  return undefined;
+}
+
+function makeId(prefix: string) {
+  return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Handle a subset of endpoints we use in the UI so pages load without a backend
+async function handleMock(path: string, init?: RequestInit): Promise<Response | null> {
+  if (!USE_MOCKS) return null;
+  const method = (init?.method || 'GET').toUpperCase();
+
+  // Auth (fake, always succeeds)
+  if (path === '/auth/login' && method === 'POST') {
+    return jsonResponse({ token: 'demo-token', user: { role: 'regulator', name: 'Regulator' } });
+  }
+  if (path === '/auth/verify-2fa' && method === 'POST') {
+    return jsonResponse({ ok: true });
+  }
+
+  // Plants
+  if (path === '/plants' && method === 'GET') {
+    return jsonResponse(mockPlants);
+  }
+  if (path === '/plants' && method === 'POST') {
+    const body = await readJson(init);
+    const newPlant: Plant = {
+      id: makeId('p'),
+      strain: body?.strain ?? 'Unknown',
+      location: body?.location ?? 'Unassigned',
+      stage: 'Vegetative',
+      createdAt: new Date().toISOString(),
+    };
+    mockPlants = [newPlant, ...mockPlants];
+    return jsonResponse(newPlant, { status: 201 });
+  }
+
+  // Harvests
+  if (path === '/harvests' && method === 'GET') {
+    return jsonResponse(mockHarvests);
+  }
+  if (path === '/harvests' && method === 'POST') {
+    const body = await readJson(init);
+    const newHarvest: Harvest = {
+      id: makeId('h'),
+      plantId: body?.plantId ?? mockPlants[0]?.id ?? 'p-0',
+      yieldGrams: body?.yieldGrams ?? 0,
+      status: body?.status ?? 'drying',
+      date: new Date().toISOString(),
+    };
+    mockHarvests = [newHarvest, ...mockHarvests];
+    return jsonResponse(newHarvest, { status: 201 });
+  }
+
+  // Locations occupancy
+  if (path === '/locations/occupancy/alerts' && method === 'GET') {
+    return jsonResponse(mockAlerts);
+  }
+  if (path === '/locations/occupancy' && method === 'GET') {
+    // Basic occupancy list derived from plants
+    const grouped = [
+      { structureId: 'st-101', structure: 'Greenhouse 1', facility: 'Farm HQ', occupied: 25, capacity: 100 },
+      { structureId: 'st-102', structure: 'Room 1', facility: 'Farm HQ', occupied: 10, capacity: 20 },
+    ];
+    return jsonResponse(grouped);
+  }
+
+  // Reports
+  if (path === '/reports/types' && method === 'GET') {
+    return jsonResponse(['weekly-inventory', 'monthly-compliance']);
+  }
+  if (path === '/reports' && method === 'GET') {
+    return jsonResponse([]);
+  }
+
+  // Inventory (read-only minimal)
+  if (path === '/inventory' && method === 'GET') {
+    return jsonResponse([
+      { id: 'i-1', name: 'Nutrient A', category: 'Supplies', quantity: 5, unit: 'bottles', location: 'Room 1' },
+    ]);
+  }
+
+  // Events
+  if (path === '/events' && method === 'GET') {
+    return jsonResponse([
+      { id: 1, title: 'Inspection', eventType: 'audit', startDate: new Date().toISOString() },
+    ]);
+  }
+
+  // Not mocked
+  return null;
+}
+
 async function fetchJson(path: string, init?: RequestInit) {
+  // MVP: do not perform real network calls. Serve mocks or empty data.
+  if (USE_MOCKS) {
+    const mock = await handleMock(path, init);
+    if (mock) return mock;
+    const method = (init?.method || 'GET').toUpperCase();
+    const emptyPayload = method === 'GET' ? [] : { ok: true };
+    return jsonResponse(emptyPayload);
+  }
   const tryOnce = async (base: string) => {
     const res = await fetch(`${base}${path}`, init);
     // If we get a 500 error, throw an error to trigger fallbacks
@@ -18,8 +157,12 @@ async function fetchJson(path: string, init?: RequestInit) {
     const res = await tryOnce(API_BASE);
     return res;
   } catch (e) {
-  // If using proxy, just bubble the error; proxy target is configured in Vite.
-  if (API_BASE.startsWith('/')) throw e;
+  // If using proxy, attempt mock fallback first (frontend-only mode)
+  if (API_BASE.startsWith('/')) {
+    const mock = await handleMock(path, init);
+    if (mock) return mock;
+    throw e;
+  }
   // Network failure (often shown as CORS did not succeed). Try alternate base once.
     const alt = altBaseFor(API_BASE);
     try {
@@ -28,7 +171,10 @@ async function fetchJson(path: string, init?: RequestInit) {
       API_BASE = alt;
       return res;
     } catch (e2) {
-      throw e; // rethrow original
+    // As a last fallback, try mocks if enabled
+    const mock = await handleMock(path, init);
+    if (mock) return mock;
+    throw e; // rethrow original
     }
   }
 }
