@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useModule } from '../context/ModuleContext';
-import { Leaf, Wand2, User as UserIcon, ChevronDown, LogOut, Calendar as CalendarIcon, Bell, FileText } from 'lucide-react';
+import { useModule, ModuleName } from '../context/ModuleContext';
+import { Leaf, Wand2, User as UserIcon, ChevronDown, LogOut, Calendar as CalendarIcon, Bell, FileText, Search, Plus, ShieldCheck, Workflow } from 'lucide-react';
 import { api } from '../lib/api';
 
 export default function NavBar() {
@@ -15,35 +15,57 @@ export default function NavBar() {
   };
 
   return (
-    <header className="border-b border-gray-100">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link to="/dashboard" className="font-semibold text-lg text-gray-900 inline-flex items-center gap-2">
-            <Leaf className="h-5 w-5 text-primary" aria-hidden />
-            Traceability
-          </Link>
-          <span className="ml-2 px-2 py-1 rounded bg-gray-100 text-sm font-medium text-gray-700">
-            {activeModule.charAt(0).toUpperCase() + activeModule.slice(1)}
-          </span>
+    <header className="border-b border-gray-100 sticky top-0 z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+        {/* Brand */}
+        <Link to="/dashboard" className="font-semibold text-lg text-gray-900 inline-flex items-center gap-2">
+          <Leaf className="h-5 w-5 text-primary" aria-hidden />
+          Traceability
+        </Link>
+
+        {/* Module switcher */}
+        <div className="hidden sm:block">
+          <ModuleSwitcher active={activeModule} modules={availableModules} />
         </div>
-        <nav className="flex items-center gap-4">
+
+        {/* Primary nav */}
+        <nav className="ml-1 hidden md:flex items-center gap-4">
           <Link className={`${isActive('/dashboard')} inline-flex items-center gap-1`} to="/dashboard">
-            <Wand2 className="h-4 w-4" aria-hidden /> Dashboard
+            <Workflow className="h-4 w-4" aria-hidden /> Overview
           </Link>
-          {/* Sites/Plants/Inventory removed */}
+          <Link className={`${isActive('/lifecycle')} inline-flex items-center gap-1`} to="/lifecycle">
+            <ShieldCheck className="h-4 w-4" aria-hidden /> Lifecycle
+          </Link>
           <Link className={`${isActive('/calendar')} inline-flex items-center gap-1`} to="/calendar">
             <CalendarIcon className="h-4 w-4" aria-hidden /> Calendar
           </Link>
           <Link className={`${isActive('/reports')} inline-flex items-center gap-1`} to="/reports">
             <FileText className="h-4 w-4" aria-hidden /> Reports
           </Link>
-          <span className="text-gray-200">|</span>
+          <Link className={`${isActive('/integrity')} inline-flex items-center gap-1`} to="/integrity">
+            <ShieldCheck className="h-4 w-4" aria-hidden /> Integrity
+          </Link>
+        </nav>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Search */}
+        <div className="hidden md:block">
+          <SearchBox />
+        </div>
+
+        {/* Quick create */}
+        <QuickCreate />
+
+        {/* Notifications & User */}
+        <div className="flex items-center gap-3">
           <NotificationsMenu />
           <UserMenu
             name={user?.firstName || user?.lastName ? `${user?.firstName} ${user?.lastName}`.trim() : user?.username || ''}
             onLogout={logout}
           />
-        </nav>
+        </div>
       </div>
     </header>
   );
@@ -380,3 +402,181 @@ function NotificationsMenu() {
 }
 
 // Reports dropdown removed; direct link used instead
+
+// New: Module switcher
+function ModuleSwitcher({ active, modules }: { active: ModuleName; modules: ModuleName[] }) {
+  const { setActiveModule } = useModule();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const labelFor = (m: ModuleName) => m.charAt(0).toUpperCase() + m.slice(1);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1 text-sm text-gray-800 hover:bg-gray-50"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <span className="font-medium">{labelFor(active)}</span>
+        <ChevronDown className="h-4 w-4 text-gray-400" aria-hidden />
+      </button>
+      {open && (
+        <div className="absolute left-0 mt-2 w-44 rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-50">
+          {modules.map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => {
+                setActiveModule(m);
+                setOpen(false);
+                navigate('/dashboard');
+              }}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${m === active ? 'text-primary' : 'text-gray-800'}`}
+              role="menuitem"
+            >
+              {labelFor(m)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// New: Global search
+function SearchBox() {
+  const navigate = useNavigate();
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const ROUTES = [
+    { label: 'Overview', path: '/dashboard', keywords: 'home overview kpi dashboard' },
+    { label: 'Licensing wizard', path: '/wizard', keywords: 'license onboarding register apply' },
+    { label: 'Lifecycle', path: '/lifecycle', keywords: 'trace seed-to-sale stages chain custody' },
+    { label: 'Calendar', path: '/calendar', keywords: 'inspection schedule events' },
+    { label: 'Reports', path: '/reports', keywords: 'pdf summary export compliance' },
+    { label: 'Integrity', path: '/integrity', keywords: 'blockchain audit tamper-evident history' },
+    { label: 'Profile', path: '/profile', keywords: 'user account settings' },
+  ];
+
+  const results = useMemo(() => {
+    const v = q.trim().toLowerCase();
+    if (!v) return ROUTES;
+    return ROUTES.filter(r => r.label.toLowerCase().includes(v) || r.keywords.includes(v));
+  }, [q]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1">
+        <Search className="h-4 w-4 text-gray-400" aria-hidden />
+        <input
+          value={q}
+          onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              const first = results[0];
+              if (first) {
+                navigate(first.path);
+                setOpen(false);
+              }
+            }
+          }}
+          placeholder="Search…"
+          className="w-72 text-sm outline-none placeholder:text-gray-400"
+          aria-label="Global search"
+        />
+      </div>
+      {open && results.length > 0 && (
+        <div className="absolute right-0 mt-2 w-[20rem] rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-50">
+          {results.slice(0, 7).map((r) => (
+            <button
+              key={r.path}
+              type="button"
+              onClick={() => { navigate(r.path); setOpen(false); }}
+              className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-gray-50"
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// New: Quick create actions
+function QuickCreate() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:opacity-95"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <Plus className="h-4 w-4" aria-hidden /> New
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-52 rounded-lg border border-gray-200 bg-white shadow-lg py-1 z-50">
+          <button
+            type="button"
+            onClick={() => { navigate('/calendar'); setOpen(false); }}
+            className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-gray-50 inline-flex items-center gap-2"
+          >
+            <CalendarIcon className="h-4 w-4 text-gray-500" aria-hidden /> Inspection
+          </button>
+          <button
+            type="button"
+            onClick={() => { navigate('/reports'); setOpen(false); }}
+            className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-gray-50 inline-flex items-center gap-2"
+          >
+            <FileText className="h-4 w-4 text-gray-500" aria-hidden /> Report
+          </button>
+          <button
+            type="button"
+            onClick={() => { navigate('/wizard'); setOpen(false); }}
+            className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-gray-50 inline-flex items-center gap-2"
+          >
+            <Wand2 className="h-4 w-4 text-gray-500" aria-hidden /> Licensing
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
