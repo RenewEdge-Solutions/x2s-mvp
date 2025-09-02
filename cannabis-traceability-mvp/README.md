@@ -25,11 +25,11 @@ Services and ports:
 
 Notes:
 - Ensure host ports 9000–9005 are free.
-- HMR ports: 24678 (welcome), 24679 (regulator), 24680 (auditor/shop), 24681 (lab), 24682 (farmer).
+- HMR ports: 24678 (welcome), 24679 (regulator), 24680 (auditor/retail), 24681 (lab), 24682 (farmer).
 
 ## 🧪 Running Locally (without Docker)
 
-Backend and database have been removed from this setup.
+No backend or database is required. All data is mocked in-memory within each frontend for demo purposes.
 
 Frontends (in separate terminals):
 ```bash
@@ -101,7 +101,7 @@ VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
 
 ## 🔑 Demo Credentials (all role apps)
 
-- Username: Regulator | Auditor | Farmer | Shop | Laboratory
+- Username: Regulator | Auditor | Farmer | Retail | Laboratory
 - Password: 1234
 - 2FA: A rotating 6‑digit code shown on the device mock in each app.
 
