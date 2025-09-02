@@ -27,11 +27,11 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: true,
-      port: 4000,
+      port: 9002,
       strictPort: true,
       hmr: {
         overlay: true,
-        clientPort: 4000,
+        clientPort: 9002,
         host: 'localhost',
         protocol: 'ws'
       },
