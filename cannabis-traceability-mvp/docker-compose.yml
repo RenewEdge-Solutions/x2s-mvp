@@ -11,18 +11,13 @@ volumes:
 services:
   # -------------------------------------------------------------
   # PUBLIC ENTRY (local dev): reverse-proxy (nginx)
-  # For local development we add an nginx container that:
-  #  - Authenticates all requests (except /oauth2/*) via oauth2-proxy
-  #  - Routes path prefixes to each internal frontend
-  #  - Serves welcome app at '/'
-  # In production you will replicate this logic in your host nginx
-  # (so your existing website vhost stays untouched) rather than
-  # necessarily running this container. The container is provided
-  # to validate the zero-trust / path-based multi‑app layout locally.
+  # Simplified (no-auth) mode: directly routes path prefixes to internal frontends
+  # and serves welcome app at '/'. Original oauth2-proxy auth layer has been
+  # disabled temporarily for faster iteration. Reactivate by uncommenting the
+  # oauth2-proxy service block and restoring auth_request directives in nginx.conf.
   reverse-proxy:
     image: nginx:1.27-alpine
     depends_on:
-      - oauth2-proxy
       - welcome-frontend
       - regulator-frontend
       - auditor-frontend
@@ -181,39 +176,33 @@ services:
   # local testing we map to host port 9006, but on the VPS you should route
   # your public domain to this container (or an nginx reverse proxy that
   # forwards to it).
-  oauth2-proxy:
-    image: quay.io/oauth2-proxy/oauth2-proxy:latest
-    restart: unless-stopped
-    # Only oauth2-proxy (and keycloak admin) need host exposure locally.
-    # reverse-proxy talks to oauth2-proxy internally on 4180.
-    ports:
-      - "9006:4180"
-    env_file:
-      - ./.env
-    environment:
-      OAUTH2_PROXY_PROVIDER: "oidc"
-      OAUTH2_PROXY_OIDC_ISSUER_URL: "http://keycloak:8080/realms/mvp"
-      OAUTH2_PROXY_CLIENT_ID: "mvp-client"
-      OAUTH2_PROXY_CLIENT_SECRET: "${OAUTH2_PROXY_CLIENT_SECRET}"
-      OAUTH2_PROXY_COOKIE_SECRET: "${COOKIE_SECRET}"
-      OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
-      OAUTH2_PROXY_REDIRECT_URL: "http://127.0.0.1:9006/oauth2/callback"
-  # NOTE: For VPS deployment override OAUTH2_PROXY_REDIRECT_URL via .env to:
-  #  https://s2s-mvp.renewedge-solutions.com/oauth2/callback
-  # so Keycloak issues tokens with the correct https redirect.
-  # Locally we keep the loopback http mapping.
-      # Upstreams list is unused with auth_request pattern but required.
-      # We keep welcome so direct access still works for testing.
-      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
-      OAUTH2_PROXY_UPSTREAMS: "http://welcome-frontend:9000/"
-      # Allow nginx auth_request probe without redirect loop
-      OAUTH2_PROXY_SKIP_AUTH_ROUTES: "/oauth2/healthz"
-    depends_on:
-      - keycloak
-      - welcome-frontend
-    networks:
-      - mvp_internal
-      - mvp_public
+  # oauth2-proxy disabled during public (no-auth) phase. Keep block commented for future reactivation.
+  # oauth2-proxy:
+  #   image: quay.io/oauth2-proxy/oauth2-proxy:latest
+  #   restart: unless-stopped
+  #   # Only oauth2-proxy (and keycloak admin) need host exposure locally.
+  #   # reverse-proxy talks to oauth2-proxy internally on 4180.
+  #   ports:
+  #     - "9006:4180"
+  #   env_file:
+  #     - ./.env
+  #   environment:
+  #     OAUTH2_PROXY_PROVIDER: "oidc"
+  #     OAUTH2_PROXY_OIDC_ISSUER_URL: "http://keycloak:8080/realms/mvp"
+  #     OAUTH2_PROXY_CLIENT_ID: "mvp-client"
+  #     OAUTH2_PROXY_CLIENT_SECRET: "${OAUTH2_PROXY_CLIENT_SECRET}"
+  #     OAUTH2_PROXY_COOKIE_SECRET: "${COOKIE_SECRET}"
+  #     OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
+  #     OAUTH2_PROXY_REDIRECT_URL: "http://127.0.0.1:9006/oauth2/callback"
+  #     OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+  #     OAUTH2_PROXY_UPSTREAMS: "http://welcome-frontend:9000/"
+  #     OAUTH2_PROXY_SKIP_AUTH_ROUTES: "/oauth2/healthz"
+  #   depends_on:
+  #     - keycloak
+  #     - welcome-frontend
+  #   networks:
+  #     - mvp_internal
+  #     - mvp_public
 
 networks:
   mvp_internal:
