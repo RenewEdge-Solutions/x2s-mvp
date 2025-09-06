@@ -36,7 +36,15 @@ export default defineConfig(({ mode }) => {
   host: 'localhost',
   protocol: 'ws'
       },
-      proxy: {}
+      proxy: {},
+      allowedHosts: [
+        'localhost',
+        '127.0.0.1',
+        's2s-mvp.renewedge-solutions.com',
+        // internal container / upstream names that may appear as Host via nginx
+        'welcome_app',
+        'welcome-frontend'
+      ]
     },
     preview: {
       host: '0.0.0.0',
