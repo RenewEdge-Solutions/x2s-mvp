@@ -1,0 +1,19 @@
+{
+  "realm": "mvp",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "mvp-client",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "changeme",
+      "redirectUris": [
+        "http://localhost:9006/oauth2/callback",
+        "http://s2s-mvp.renewedge-solutions.com/oauth2/callback"
+      ],
+      "directAccessGrantsEnabled": true
+    }
+  ],
+  "users": []
+}

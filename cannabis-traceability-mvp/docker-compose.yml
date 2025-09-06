@@ -19,9 +19,11 @@ services:
       NODE_ENV: development
       DEBUG: "vite:*"
       VITE_HMR_PORT: "24680"
-    ports:
-      - "9002:9001"
-      - "24680:24680"
+    # Do not publish frontend ports to the host. Keep them internal-only so
+    # they are only reachable from other containers (eg. oauth2-proxy).
+    expose:
+      - "9001"
+      - "24680"
     volumes:
       - ./auditor-frontend:/app
       - auditor_node_modules:/app/node_modules
@@ -37,9 +39,9 @@ services:
       NODE_ENV: development
       DEBUG: "vite:*"
       VITE_HMR_PORT: "24679"
-    ports:
-      - "9001:9001"
-      - "24679:24679"
+    expose:
+      - "9001"
+      - "24679"
     volumes:
       - ./regulator-frontend:/app
       - regulator_node_modules:/app/node_modules
@@ -55,9 +57,9 @@ services:
       NODE_ENV: development
       DEBUG: "vite:*"
       VITE_HMR_PORT: "24683"
-    ports:
-      - "9004:9001"
-      - "24683:24683"
+    expose:
+      - "9001"
+      - "24683"
     volumes:
       - ./retail-frontend:/app
       - retail_node_modules:/app/node_modules
@@ -73,9 +75,9 @@ services:
       NODE_ENV: development
       DEBUG: "vite:*"
       VITE_HMR_PORT: "24682"
-    ports:
-      - "9003:9000"
-      - "24682:24682"
+    expose:
+      - "9000"
+      - "24682"
     volumes:
       - ./farmer-frontend:/app
       - farmer_node_modules:/app/node_modules
@@ -91,9 +93,9 @@ services:
       NODE_ENV: development
       DEBUG: "vite:*"
       VITE_HMR_PORT: "24681"
-    ports:
-      - "9005:9001"
-      - "24681:24681"
+    expose:
+      - "9001"
+      - "24681"
     volumes:
       - ./laboratory-frontend:/app
       - laboratory_node_modules:/app/node_modules
@@ -107,11 +109,55 @@ services:
       NODE_ENV: development
       DEBUG: "vite:*"
       VITE_HMR_PORT: "24678"
-    ports:
-      - "9000:9000"
-      - "24678:24678"
+    expose:
+      - "9000"
+      - "24678"
     volumes:
       - ./welcome-frontend:/app
       - welcome_node_modules:/app/node_modules
     command: sh -c "npm install && npm run dev"
+
+  # Keycloak identity provider (development mode). Admin user is created from
+  # environment variables. Keycloak listens on 8080 internally. We keep it on
+  # the internal network only by default; for local testing we map the port to
+  # the host. On the VPS we'll expose it only on the auth subdomain via nginx.
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.1.1
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+    command: start-dev --import-realm
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    networks:
+      - mvp_internal
+
+  # oauth2-proxy performs authentication via Keycloak and proxies requests to
+  # the internal frontends. This is the only service we'll expose publicly
+  # for the MVP (it will be bound to your s2s-mvp domain on the VPS). For
+  # local testing we map to host port 9006, but on the VPS you should route
+  # your public domain to this container (or an nginx reverse proxy that
+  # forwards to it).
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:7.4.0
+    restart: unless-stopped
+    ports:
+      - "9006:4180"
+    volumes:
+      - ./oauth2-proxy/oauth2-proxy.cfg:/etc/oauth2-proxy.cfg:ro
+    command: --config /etc/oauth2-proxy.cfg
+    depends_on:
+      - keycloak
+      - welcome-frontend
+    networks:
+      - mvp_internal
+      - mvp_public
+
+networks:
+  mvp_internal:
+    driver: bridge
+  mvp_public:
+    driver: bridge
 
