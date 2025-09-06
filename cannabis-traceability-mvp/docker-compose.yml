@@ -19,6 +19,7 @@ services:
     image: nginx:1.27-alpine
     depends_on:
       - welcome-frontend
+      - oauth2-proxy
       - regulator-frontend
       - auditor-frontend
       - farmer-frontend
@@ -164,7 +165,6 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
     command: start-dev --import-realm
-    # Limit admin console to localhost only
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
@@ -172,39 +172,35 @@ services:
     networks:
       - mvp_internal
 
-  # oauth2-proxy performs authentication via Keycloak and proxies requests to
-  # the internal frontends. This is the only service we'll expose publicly
-  # for the MVP (it will be bound to your s2s-mvp domain on the VPS). For
-  # local testing we map to host port 9006, but on the VPS you should route
-  # your public domain to this container (or an nginx reverse proxy that
-  # forwards to it).
-  # oauth2-proxy disabled during public (no-auth) phase. Keep block commented for future reactivation.
-  # oauth2-proxy:
-  #   image: quay.io/oauth2-proxy/oauth2-proxy:latest
-  #   restart: unless-stopped
-  #   # Only oauth2-proxy (and keycloak admin) need host exposure locally.
-  #   # reverse-proxy talks to oauth2-proxy internally on 4180.
-  #   ports:
-  #     - "9006:4180"
-  #   env_file:
-  #     - ./.env
-  #   environment:
-  #     OAUTH2_PROXY_PROVIDER: "oidc"
-  #     OAUTH2_PROXY_OIDC_ISSUER_URL: "http://keycloak:8080/realms/mvp"
-  #     OAUTH2_PROXY_CLIENT_ID: "mvp-client"
-  #     OAUTH2_PROXY_CLIENT_SECRET: "${OAUTH2_PROXY_CLIENT_SECRET}"
-  #     OAUTH2_PROXY_COOKIE_SECRET: "${COOKIE_SECRET}"
-  #     OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
-  #     OAUTH2_PROXY_REDIRECT_URL: "http://127.0.0.1:9006/oauth2/callback"
-  #     OAUTH2_PROXY_EMAIL_DOMAINS: "*"
-  #     OAUTH2_PROXY_UPSTREAMS: "http://welcome-frontend:9000/"
-  #     OAUTH2_PROXY_SKIP_AUTH_ROUTES: "/oauth2/healthz"
-  #   depends_on:
-  #     - keycloak
-  #     - welcome-frontend
-  #   networks:
-  #     - mvp_internal
-  #     - mvp_public
+  # oauth2-proxy adds Keycloak-based auth in front of welcome-frontend.
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:latest
+    restart: unless-stopped
+    # Bind only loopback for local/VPS private usage
+    ports:
+      - "127.0.0.1:9006:4180"
+    env_file:
+      - ./.env
+    environment:
+      OAUTH2_PROXY_PROVIDER: "oidc"
+      OAUTH2_PROXY_OIDC_ISSUER_URL: "http://keycloak:8080/realms/mvp"
+      OAUTH2_PROXY_CLIENT_ID: "mvp-client"
+      OAUTH2_PROXY_CLIENT_SECRET: "${OAUTH2_PROXY_CLIENT_SECRET}"
+      OAUTH2_PROXY_COOKIE_SECRET: "${COOKIE_SECRET}"
+      OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
+      # Adjust to external https URL later on VPS
+      OAUTH2_PROXY_REDIRECT_URL: "http://127.0.0.1:9006/oauth2/callback"
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      # We let nginx do upstream routing; oauth2-proxy only does auth endpoints
+      OAUTH2_PROXY_UPSTREAMS: "file:///dev/null"
+      OAUTH2_PROXY_SKIP_AUTH_ROUTES: "/oauth2/healthz"
+      OAUTH2_PROXY_COOKIE_SECURE: "false"
+      OAUTH2_PROXY_COOKIE_SAMESITE: "lax"
+    depends_on:
+      - keycloak
+    networks:
+      - mvp_internal
+      - mvp_public
 
 networks:
   mvp_internal:

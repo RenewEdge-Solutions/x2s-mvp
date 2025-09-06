@@ -1,0 +1,31 @@
+{
+  "realm": "mvp",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "mvp-client",
+      "publicClient": false,
+      "secret": "CHANGE_ME_RUNTIME", 
+      "redirectUris": [
+        "http://127.0.0.1:9006/oauth2/callback",
+        "http://localhost:9006/oauth2/callback"
+      ],
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "rootUrl": ""
+    }
+  ],
+  "users": [
+    {
+      "username": "demo",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "User",
+      "email": "demo@example.com",
+      "credentials": [ { "type": "password", "value": "demo", "temporary": false } ]
+    }
+  ]
+}
