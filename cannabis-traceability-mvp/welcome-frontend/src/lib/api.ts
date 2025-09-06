@@ -79,6 +79,15 @@ async function safeApiCallObject<T>(apiCall: () => Promise<Response>, fallback: 
 }
 
 export const api = {
+  async session() {
+    try {
+      const res = await fetch('/session');
+      if (!res.ok) return { authenticated: false };
+      return res.json();
+    } catch (e) {
+      return { authenticated: false };
+    }
+  },
   async login(username: string, password: string) {
   const res = await fetchJson(`/auth/login`, {
       method: 'POST',

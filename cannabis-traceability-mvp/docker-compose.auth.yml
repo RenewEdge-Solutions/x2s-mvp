@@ -1,0 +1,89 @@
+version: "3.9"
+
+services:
+  # Keycloak: admin console / OIDC identity provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.1.1
+    command: ["start-dev"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"    # only expose the auth container for testing; in production this will be routed by the VPS nginx
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - mvp_net
+
+  # oauth2-proxy will handle authentication with Keycloak and act as the public reverse-proxy for the MVP
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:7.4.0
+    environment:
+      OAUTH2_PROXY_PROVIDER: oidc
+      # Issuer URL for Keycloak (adjust if you create a different realm)
+      OAUTH2_PROXY_OIDC_ISSUER_URL: http://keycloak:8080/realms/master
+      OAUTH2_PROXY_CLIENT_ID: mvp-client
+      # NOTE: set a real secret before production; for local testing this value is OK but treat it as sensitive
+      OAUTH2_PROXY_CLIENT_SECRET: very-secret-client-secret
+      # 32 or 64 bytes base64 cookie secret -- replace for real deployments
+      OAUTH2_PROXY_COOKIE_SECRET: "a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4"
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      # Upstream that oauth2-proxy will forward to after successful auth
+      OAUTH2_PROXY_UPSTREAMS: http://session-proxy:7000/
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      # Optionally set the redirect URL to your public auth domain (used when creating the Keycloak client)
+      # OAUTH2_PROXY_REDIRECT_URL: https://s2s-mvp.local/oauth2/callback
+    ports:
+      - "4180:4180"   # public oauth2-proxy port for local testing
+    depends_on:
+      - keycloak
+      - session-proxy
+    networks:
+      - mvp_net
+
+  # Run the welcome frontend internally (no public port mapping) so it is only reachable through oauth2-proxy
+  welcome-frontend:
+    build:
+      context: ./welcome-frontend
+    environment:
+      VITE_USE_API_PROXY: "false"
+      NODE_ENV: development
+      DEBUG: "vite:*"
+      VITE_HMR_PORT: "24678"
+    # IMPORTANT: no ports mapped -> not directly accessible from host
+    volumes:
+      - ./welcome-frontend:/app
+      - welcome_node_modules:/app/node_modules
+    command: sh -c "npm install && npm run dev -- --port 9000"
+    networks:
+      - mvp_net
+
+  session-proxy:
+    build:
+      context: ./session-proxy
+    environment:
+      PORT: 7000
+    depends_on:
+      - welcome-frontend
+    networks:
+      - mvp_net
+
+  # Small nginx instance that exposes the s2s-mvp hostname and proxies to oauth2-proxy.
+  # In production on your VPS, your existing nginx will take this role; locally we provide it so you can test the flow.
+  mvp-nginx:
+    image: nginx:stable
+    ports:
+      - "8081:80"   # change if 80 is in use locally
+    volumes:
+      - ./nginx/mvp.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - oauth2-proxy
+    networks:
+      - mvp_net
+
+volumes:
+  keycloak_data:
+  welcome_node_modules:
+
+networks:
+  mvp_net: {}

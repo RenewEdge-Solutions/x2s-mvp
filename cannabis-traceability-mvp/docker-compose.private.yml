@@ -1,0 +1,27 @@
+version: '3.9'
+
+services:
+  auditor-frontend:
+    ports: []
+    expose:
+      - "9001"
+  regulator-frontend:
+    ports: []
+    expose:
+      - "9001"
+  retail-frontend:
+    ports: []
+    expose:
+      - "9001"
+  farmer-frontend:
+    ports: []
+    expose:
+      - "9000"
+  laboratory-frontend:
+    ports: []
+    expose:
+      - "9001"
+  welcome-frontend:
+    ports: []
+    expose:
+      - "9000"

@@ -58,6 +58,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) localStorage.setItem('user', JSON.stringify(user));
   }, [user]);
 
+  // When running behind oauth2-proxy/session-proxy, try to read session info
+  useEffect(() => {
+    let mounted = true;
+    async function checkSession() {
+      try {
+        const res = await fetch('/session');
+        if (!mounted) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.authenticated) {
+            // create a minimal user profile from headers
+            const u: User = {
+              id: data.user || data.email || 'external',
+              username: data.user || data.email || 'external',
+              role: 'Operator',
+              email: data.email,
+            } as UserProfile;
+            setUser(u);
+          }
+        }
+      } catch (e) {
+        // ignore - not running behind session-proxy during normal local dev
+      }
+    }
+    checkSession();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const value = useMemo(
     () => ({ user, is2FARequired, login, verify2FA, logout }),
     [user, is2FARequired],
