@@ -6,6 +6,7 @@ volumes:
   laboratory_node_modules:
   welcome_node_modules:
   farmer_node_modules:
+  keycloak_data:
 
 services:
   # -------------------------------------------------------------
@@ -125,17 +126,15 @@ services:
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      # External hostname for public access (set in .env). Ensures issued tokens / redirects use correct domain.
       KC_HOSTNAME: ${KC_HOSTNAME:-auth.renewedge-solutions.com}
-      # Trust reverse proxy (host nginx terminates TLS and sets X-Forwarded-*). 'edge' = one reverse proxy hop.
       KC_PROXY: ${KC_PROXY_MODE:-edge}
-      # Allow HTTP when TLS terminated in front (set true only during initial setup if needed).
       KC_HOSTNAME_STRICT_HTTPS: ${KC_HOSTNAME_STRICT_HTTPS:-false}
     command: start-dev --import-realm
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - keycloak_data:/opt/keycloak/data
     networks:
       - mvp_internal
   # NOTE: Removed healthcheck because the official Keycloak image does not ship curl/wget by default.
