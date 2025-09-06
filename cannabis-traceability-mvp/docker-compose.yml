@@ -140,12 +140,15 @@ services:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     networks:
       - mvp_internal
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8080/realms/master/.well-known/openid-configuration || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+  # NOTE: Removed healthcheck because the official Keycloak image does not ship curl/wget by default.
+  # If you want a healthcheck, enable health endpoints and add a lightweight HTTP probe tool or use a sidecar.
+  # Example (if you install curl):
+  # healthcheck:
+  #   test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/realms/master || exit 1"]
+  #   interval: 30s
+  #   timeout: 5s
+  #   retries: 5
+  #   start_period: 20s
 
   # oauth2-proxy adds Keycloak-based auth in front of welcome-frontend.
   oauth2-proxy:
