@@ -198,6 +198,10 @@ services:
       OAUTH2_PROXY_COOKIE_SECRET: "${COOKIE_SECRET}"
       OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
       OAUTH2_PROXY_REDIRECT_URL: "http://127.0.0.1:9006/oauth2/callback"
+  # NOTE: For VPS deployment override OAUTH2_PROXY_REDIRECT_URL via .env to:
+  #  https://s2s-mvp.renewedge-solutions.com/oauth2/callback
+  # so Keycloak issues tokens with the correct https redirect.
+  # Locally we keep the loopback http mapping.
       # Upstreams list is unused with auth_request pattern but required.
       # We keep welcome so direct access still works for testing.
       OAUTH2_PROXY_EMAIL_DOMAINS: "*"
