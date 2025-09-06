@@ -1,7 +1,12 @@
 FROM node:18-alpine
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm install
+# install devDependencies so build tools (vite) are available at build time
+RUN npm install --include=dev
 COPY . .
-	EXPOSE 9000
-CMD ["npm", "run", "dev", "--", "--host"]
+# build the production assets at image build time
+RUN npm run build
+
+EXPOSE 9000
+# run the preview server in the container
+CMD ["npm", "run", "preview", "--", "--port", "9000", "--host", "0.0.0.0"]

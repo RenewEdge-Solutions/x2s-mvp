@@ -38,6 +38,18 @@ export default defineConfig(({ mode }) => {
       },
       proxy: {}
     },
+    preview: {
+      host: '0.0.0.0',
+      port: 9000,
+      // allow the container/service hostname plus expected public hostnames
+      allowedHosts: [
+        'welcome-frontend',
+        'localhost',
+        '127.0.0.1',
+        's2s-mvp.renewedge-solutions.com',
+        'auth.renewedge-solutions.com'
+      ]
+    },
     build: {
       sourcemap: mode === 'development',
       minify: mode === 'production',
