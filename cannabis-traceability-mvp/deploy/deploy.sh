@@ -8,8 +8,18 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
 if [ ! -f ".env" ]; then
-  echo "Create .env from .env.example and fill secrets. Aborting." >&2
-  exit 1
+  if [ -f ".env.example" ]; then
+    echo "No .env file found — creating .env from .env.example with placeholder values."
+    cp .env.example .env
+    echo
+    echo "IMPORTANT: You must edit .env and set real secrets before using this in production."
+    echo "Continuing with values from .env.example (placeholders) — abort now to edit the file."
+    echo
+    sleep 2
+  else
+    echo "Create .env from .env.example and fill secrets. Aborting." >&2
+    exit 1
+  fi
 fi
 
 echo "Building and starting auth stack..."
