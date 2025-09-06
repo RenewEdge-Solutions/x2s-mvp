@@ -153,19 +153,20 @@ services:
       - ./.env
     environment:
       OAUTH2_PROXY_PROVIDER: "oidc"
-      OAUTH2_PROXY_OIDC_ISSUER_URL: "http://keycloak:8080/realms/mvp"
-      OAUTH2_PROXY_CLIENT_ID: "mvp-client"
-      OAUTH2_PROXY_CLIENT_SECRET: "${OAUTH2_PROXY_CLIENT_SECRET}"
-      OAUTH2_PROXY_COOKIE_SECRET: "${COOKIE_SECRET}"
-      OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
-      # Adjust to external https URL later on VPS
-      OAUTH2_PROXY_REDIRECT_URL: "http://127.0.0.1:9006/oauth2/callback"
-      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
-      # We let nginx do upstream routing; oauth2-proxy only does auth endpoints
-      OAUTH2_PROXY_UPSTREAMS: "file:///dev/null"
-      OAUTH2_PROXY_SKIP_AUTH_ROUTES: "/oauth2/healthz"
-      OAUTH2_PROXY_COOKIE_SECURE: "false"
-      OAUTH2_PROXY_COOKIE_SAMESITE: "lax"
+  # Public HTTPS issuer (matches KC_HOSTNAME)
+  OAUTH2_PROXY_OIDC_ISSUER_URL: "https://auth.renewedge-solutions.com/realms/mvp"
+  OAUTH2_PROXY_CLIENT_ID: "mvp-client"
+  OAUTH2_PROXY_CLIENT_SECRET: "${OAUTH2_PROXY_CLIENT_SECRET}"
+  OAUTH2_PROXY_COOKIE_SECRET: "${COOKIE_SECRET}"
+  OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
+  OAUTH2_PROXY_REDIRECT_URL: "https://s2s-mvp.renewedge-solutions.com/oauth2/callback"
+  OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+  # We let nginx do upstream routing; oauth2-proxy only does auth endpoints
+  OAUTH2_PROXY_UPSTREAMS: "file:///dev/null"
+  OAUTH2_PROXY_SKIP_AUTH_ROUTES: "/oauth2/healthz"
+  OAUTH2_PROXY_COOKIE_SECURE: "true"
+  OAUTH2_PROXY_COOKIE_SAMESITE: "lax"
+  OAUTH2_PROXY_COOKIE_HTTPONLY: "true"
     depends_on:
       - keycloak
     networks:
