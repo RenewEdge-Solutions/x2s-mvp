@@ -9,6 +9,35 @@ volumes:
   farmer_node_modules:
 
 services:
+  # -------------------------------------------------------------
+  # PUBLIC ENTRY (local dev): reverse-proxy (nginx)
+  # For local development we add an nginx container that:
+  #  - Authenticates all requests (except /oauth2/*) via oauth2-proxy
+  #  - Routes path prefixes to each internal frontend
+  #  - Serves welcome app at '/'
+  # In production you will replicate this logic in your host nginx
+  # (so your existing website vhost stays untouched) rather than
+  # necessarily running this container. The container is provided
+  # to validate the zero-trust / path-based multi‑app layout locally.
+  reverse-proxy:
+    image: nginx:1.27-alpine
+    depends_on:
+      - oauth2-proxy
+      - welcome-frontend
+      - regulator-frontend
+      - auditor-frontend
+      - farmer-frontend
+      - retail-frontend
+      - laboratory-frontend
+    volumes:
+      - ./reverse-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+    # This is the single public port for the MVP user entry (was welcome :9000)
+    ports:
+      - "9000:80"
+    networks:
+      - mvp_public
+      - mvp_internal
+
   auditor-frontend:
     build:
       context: ./auditor-frontend
@@ -143,6 +172,8 @@ services:
   oauth2-proxy:
     image: quay.io/oauth2-proxy/oauth2-proxy:latest
     restart: unless-stopped
+    # Only oauth2-proxy (and keycloak admin) need host exposure locally.
+    # reverse-proxy talks to oauth2-proxy internally on 4180.
     ports:
       - "9006:4180"
     env_file:
@@ -153,10 +184,14 @@ services:
       OAUTH2_PROXY_CLIENT_ID: "mvp-client"
       OAUTH2_PROXY_CLIENT_SECRET: "${OAUTH2_PROXY_CLIENT_SECRET}"
       OAUTH2_PROXY_COOKIE_SECRET: "${COOKIE_SECRET}"
-  OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
-  OAUTH2_PROXY_REDIRECT_URL: "http://127.0.0.1:9006/oauth2/callback"
-  OAUTH2_PROXY_EMAIL_DOMAINS: "*"
-  OAUTH2_PROXY_UPSTREAMS: "http://welcome-frontend:9000/"
+      OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
+      OAUTH2_PROXY_REDIRECT_URL: "http://127.0.0.1:9006/oauth2/callback"
+      # Upstreams list is unused with auth_request pattern but required.
+      # We keep welcome so direct access still works for testing.
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_UPSTREAMS: "http://welcome-frontend:9000/"
+      # Allow nginx auth_request probe without redirect loop
+      OAUTH2_PROXY_SKIP_AUTH_ROUTES: "/oauth2/healthz"
     depends_on:
       - keycloak
       - welcome-frontend

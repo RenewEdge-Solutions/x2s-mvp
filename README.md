@@ -27,6 +27,72 @@ Notes:
 - Ensure host ports 9000–9005 are free.
 - HMR ports: 24678 (welcome), 24679 (regulator), 24680 (auditor/retail), 24681 (lab), 24682 (farmer).
 
+## 🔐 Auth-Gated Single Entry (MVP hardening)
+
+An optional auth layer (Keycloak + oauth2-proxy + nginx) is provided to run ALL frontends behind a single protected entrypoint. Only authenticated users reach the apps; internal containers are never published directly.
+
+Architecture (local dev):
+```
+Browser ─▶ nginx (:9000 host) ─▶ oauth2-proxy ─▶ Keycloak
+									└──▶ welcome-frontend (default landing)
+									└──▶ /regulator/  → regulator-frontend
+									└──▶ /auditor/    → auditor-frontend
+									└──▶ /farmer/     → farmer-frontend
+									└──▶ /retail/     → retail-frontend
+									└──▶ /laboratory/ → laboratory-frontend
+```
+
+Run locally with auth gate:
+```bash
+cd cannabis-traceability-mvp
+docker compose up --build
+```
+Then open: http://localhost:9000 (you will be redirected to Keycloak login if not already authenticated).
+
+Keycloak admin (local only): http://localhost:8080
+Realm: mvp
+Client: mvp-client (confidential)
+
+To change secrets (RECOMMENDED before VPS deploy):
+1. Generate a random 32B cookie secret:
+	`python -c 'import os,base64;print(base64.b64encode(os.urandom(32)).decode())'`
+2. Set environment variables (create `.env` in `cannabis-traceability-mvp/`):
+	```env
+	OAUTH2_PROXY_CLIENT_SECRET=<match Keycloak client secret>
+	COOKIE_SECRET=<base64 32B secret>
+	KEYCLOAK_ADMIN=admin
+	KEYCLOAK_ADMIN_PASSWORD=<choose-strong>
+	VITE_GOOGLE_MAPS_API_KEY=<optional>
+	```
+3. Update `keycloak/realm-export.json` client secret OR edit the client in the Keycloak admin UI to match `OAUTH2_PROXY_CLIENT_SECRET`.
+
+### VPS Deployment Outline (coexists with existing production website)
+
+1. Push these changes to `main` (or a deploy branch) and pull on the server.
+2. On the server, create a new nginx vhost for `s2s-mvp.renewedge-solutions.com` that proxies to the oauth2-proxy container (or to the internal nginx container if you choose to keep it). Example minimal vhost snippet:
+	```nginx
+	server {
+	  server_name s2s-mvp.renewedge-solutions.com;
+	  location / { proxy_pass http://127.0.0.1:9000; proxy_set_header Host $host; }
+	}
+	```
+	(If you prefer to terminate TLS at the nginx host, keep the container http-only.)
+3. Create another vhost `auth.renewedge-solutions.com` pointing to Keycloak (host port 8080) OR restrict Keycloak admin to VPN / IP allowlist.
+4. Issue TLS certs (Let's Encrypt) for both subdomains (your existing website vhost stays untouched).
+5. Create `.env` (as above) on the server before starting compose.
+6. Start services: `docker compose up -d --build`.
+7. Log into Keycloak admin (auth subdomain) → add users → assign roles (optional; roles not yet enforced in UI, but user identity is propagated via oauth2-proxy headers).
+
+### Hardening For Production
+- Remove Keycloak host port exposure in `docker-compose.yml` (delete `ports:` for `keycloak`) and route only through an admin vhost or private network.
+- Enforce HTTPS only cookies: add to oauth2-proxy `OAUTH2_PROXY_COOKIE_SECURE=true` when TLS termination in front.
+- Pin image versions (oauth2-proxy `v7.x.x`, nginx `1.27.x`, etc.) for reproducibility.
+- Add backups for the Keycloak database (current dev config uses ephemeral storage—introduce a Postgres service + persistent volume for real users).
+
+### Removing the Auth Layer
+If you later want to expose individual frontends again, simply remove the `reverse-proxy`, `oauth2-proxy`, and `keycloak` services plus restore host `ports:` on frontends (currently only `expose:` is used to keep them internal).
+
+
 ## 🧪 Running Locally (without Docker)
 
 No backend or database is required. All data is mocked in-memory within each frontend for demo purposes.

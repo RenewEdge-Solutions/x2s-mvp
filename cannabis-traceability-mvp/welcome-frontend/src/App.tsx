@@ -23,31 +23,31 @@ type Role = {
 const roles: Role[] = [
   {
     name: 'Regulator',
-    href: 'http://localhost:9001',
+  href: '/regulator/',
     icon: Scale,
     blurb: 'Licensing, compliance KPIs, enforcement views',
   },
   {
     name: 'Auditor',
-    href: 'http://localhost:9002',
+  href: '/auditor/',
     icon: ShieldCheck,
     blurb: 'Chain-of-custody, audit logs, investigations',
   },
   {
   name: 'Farmer',
-    href: 'http://localhost:9003',
+  href: '/farmer/',
     icon: Leaf,
     blurb: 'Seed-to-harvest, inventory, movement journals',
   },
   {
   name: 'Retail',
-    href: 'http://localhost:9004',
+  href: '/retail/',
     icon: Store,
     blurb: 'Point-of-sale traceability and product history',
   },
   {
     name: 'Laboratory',
-    href: 'http://localhost:9005',
+  href: '/laboratory/',
     icon: Microscope,
     blurb: 'COAs, batch results, recalls support',
   },
