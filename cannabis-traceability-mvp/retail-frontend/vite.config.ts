@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: true,
-  port: 9001,
+	port: 9000,
       strictPort: true,
       hmr: {
         overlay: true,
