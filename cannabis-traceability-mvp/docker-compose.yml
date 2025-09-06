@@ -27,8 +27,9 @@ services:
     volumes:
       - ./reverse-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
     # This is the single public port for the MVP user entry (was welcome :9000)
+    # Bind only to loopback so not exposed to the public internet
     ports:
-      - "9000:80"
+      - "127.0.0.1:9000:80"
     networks:
       - mvp_public
       - mvp_internal
@@ -163,8 +164,9 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
     command: start-dev --import-realm
+    # Limit admin console to localhost only
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     networks:
