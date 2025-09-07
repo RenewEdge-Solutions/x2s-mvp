@@ -5,6 +5,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const hmrPort = Number(process.env.VITE_HMR_PORT || env.VITE_HMR_PORT || '24679');
   return {
+  base: './',
     plugins: [
       react({
         jsxRuntime: 'automatic'

@@ -32,7 +32,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <AuthProvider>
         <ModuleProvider>
-          <BrowserRouter>
+          <BrowserRouter basename="/retail">
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route
