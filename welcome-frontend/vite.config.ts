@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => {
   const target = process.env.VITE_API_URL || env.VITE_API_URL || '';
   const hmrPort = Number(process.env.VITE_HMR_PORT || env.VITE_HMR_PORT || '24678');
   return {
+    base: './',
     plugins: [
       react({
         jsxRuntime: 'automatic'
